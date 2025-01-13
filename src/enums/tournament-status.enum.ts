@@ -1,0 +1,9 @@
+export enum TournamentStatus {
+    NEED_INFORMATION = 'NEED_INFORMATION',
+    READY = 'READY',
+    IN_PROGRESS = 'IN_PROGRESS',
+    FINISHED = 'FINISHED',
+    DISCARDED = 'DISCARDED',
+    DELETED = 'DELETED',
+  }
+  
