@@ -1,5 +1,13 @@
 import { registerAs } from '@nestjs/config';
 import { config as dotenvConfig } from 'dotenv';
+import e from 'express';
+import { join } from 'path';
+import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
+import { Match } from 'src/modules/match/entities/match.entity';
+import { Player } from 'src/modules/player/entities/player.entity';
+import { Team } from 'src/modules/team/entities/team.entity';
+import { Tournament } from 'src/modules/tournament/entities/tournament.entity';
+import { User } from 'src/modules/user/entities/user.entity';
 import { DataSource, DataSourceOptions } from 'typeorm';
 dotenvConfig({ path: '.env' });
 const config = {
@@ -9,10 +17,12 @@ const config = {
   username: `${process.env.DB_USERNAME}`,
   password: `${process.env.DB_PASSWORD}`,
   database: `${process.env.DB_DATABASE}`,
-  entities: [ 'src/**/entities/*.entity.ts',],
-  migrations: ['src/migrations/*{.ts,.js}'],
+  // entities: [join(__dirname, '**', 'entities/*.entity.{ts,js}')],
+  entities: [User,Tournament,EventDate,Match,Player,Team],
+  migrations: [join(__dirname, '**', 'migrations/*.{ts,js}')],
   autoLoadEntities: true,
   synchronize: false,
+  logging: true
 };
 
 export default registerAs('typeorm', () => config);
