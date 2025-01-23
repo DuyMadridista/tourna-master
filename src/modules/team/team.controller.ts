@@ -1,34 +1,90 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Query,
+  Body,
+  HttpStatus,
+  HttpCode,
+} from '@nestjs/common';
 import { TeamService } from './team.service';
-import { CreateTeamDto } from './dto/create-team.dto';
-import { UpdateTeamDto } from './dto/update-team.dto';
+import { SuccessResponse } from 'src/helper/OkResponse';
+import { SuccessResponseDto } from 'src/helper/successResponse.dto';
+import { Team } from './entities/team.entity';
+import { TeamPlayerDto } from './dto/team-player.dto';
 
-@Controller('team')
+@Controller('tournament/:tournamentId/team')
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}
 
-  @Post()
-  create(@Body() createTeamDto: CreateTeamDto) {
-    return this.teamService.create(createTeamDto);
+  @Get('')
+  @HttpCode(HttpStatus.OK)
+  async findAllTeamAndPlayer(
+    @Param('tournamentId') tournamentId: number,
+    @Query('size') size: number = 10,
+    @Query('page') page: number = 1,
+  ): Promise<SuccessResponseDto<TeamPlayerDto[]>> {
+    const totalTeamRecords = await this.teamService.getTotalRecordsForTournament(tournamentId);
+    const teamAndPlayer = await this.teamService.getAllTeamAndPlayerCount(tournamentId, page - 1, size);
+
+    return SuccessResponse(true, teamAndPlayer.length, teamAndPlayer, 'Teams and players retrieved successfully', {
+      totalTeamOfTournament: totalTeamRecords,
+    });
   }
 
-  @Get()
-  findAll() {
-    return this.teamService.findAll();
+  @Get('/all')
+  @HttpCode(HttpStatus.OK)
+  async getAllTeam(@Param('tournamentId') tournamentId: number): Promise<SuccessResponseDto<Team[]>> {
+    const allTeams = await this.teamService.getAllTeamByTournamentId(tournamentId);
+
+    return SuccessResponse(true, allTeams.length, allTeams, 'All teams retrieved successfully');
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.teamService.findOne(+id);
+  @Post('')
+  @HttpCode(HttpStatus.CREATED)
+  async createTeam(
+    @Body() teamDto: Team,
+    @Param('tournamentId') tournamentId: number,
+  ): Promise<SuccessResponseDto<Team>> {
+    const newTeam = await this.teamService.createTeam(teamDto.teamName.trim(), tournamentId);
+
+    return SuccessResponse(true, 1, newTeam, 'Team created successfully');
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTeamDto: UpdateTeamDto) {
-    return this.teamService.update(+id, updateTeamDto);
+  @Put('/:id')
+  @HttpCode(HttpStatus.OK)
+  async updateTeam(
+    @Param('tournamentId') tournamentId: number,
+    @Param('id') id: number,
+    @Body() teamDto: Team,
+  ): Promise<SuccessResponseDto<Team>> {
+    const updatedTeam = await this.teamService.updateTeam(tournamentId, id, teamDto.teamName.trim());
+
+    return SuccessResponse(true, 1, updatedTeam, 'Team updated successfully');
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.teamService.remove(+id);
+  @Delete('/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteTeam(
+    @Param('tournamentId') tournamentId: number,
+    @Param('id') id: number,
+  ): Promise<SuccessResponseDto<Team>> {
+    const deletedTeam = await this.teamService.deleteTeam(tournamentId, id);
+
+    return SuccessResponse(true, 1, deletedTeam, 'Team deleted successfully');
+  }
+
+  @Get('/:id')
+  @HttpCode(HttpStatus.OK)
+  async findTeamById(
+    @Param('tournamentId') tournamentId: number,
+    @Param('id') id: number,
+  ): Promise<SuccessResponseDto<Team>> {
+    const team = await this.teamService.findTeamById(tournamentId, id);
+
+    return SuccessResponse(true, 1, team, 'Team retrieved successfully');
   }
 }

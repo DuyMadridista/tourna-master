@@ -19,6 +19,13 @@ export class TournamentRepository {
         private userService: UserService,
         private readonly repository: Repository<Tournament>,
     ) {}
+    async findOne(id: number): Promise<Tournament | null> {
+        return this.repository.findOne({
+            where: {
+                id,
+            },
+        });
+    }
 
     async findTournamentByIdAndNotDeleted(id: number): Promise<Tournament | null> {
         return this.repository.findOne({
@@ -67,7 +74,7 @@ export class TournamentRepository {
 
     async findTournamentInProgressNeedToChangeToFinished(): Promise<any[]> {
         return this.repository.query(`
-            SELECT t.tournament_id, GREATEST(MAX(m.end_time), temp.end_time) AS max_end_time, temp.date
+            SELECT t.tournament_id, GREATEST(MAX(m.end_time), temp.end_   time) AS max_end_time, temp.date
             FROM tournament t
             JOIN (
                 SELECT tournament_id, ranked.EventDateId, ranked.date, ranked.end_time
@@ -113,7 +120,14 @@ export class TournamentRepository {
         });
     }
 
-
+    async findTournamentByIdAndIsDeletedFalse(id: number): Promise<Tournament | null> {
+        return this.repository.findOne({
+            where: {
+                id,
+                isDeleted: false,
+            },
+        });
+    }
     async findAllByUserId(
         userId: number,
         page: number,

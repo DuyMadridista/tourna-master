@@ -1,26 +1,128 @@
-import { Injectable } from '@nestjs/common';
-import { CreatePlayerDto } from './dto/create-player.dto';
-import { UpdatePlayerDto } from './dto/update-player.dto';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Player } from '../player/entities/player.entity';
+import { PlayerRepository } from './player.repository';
+import { TeamRepository } from '../team/team.repository';
+import { DateValidatorUtils } from 'src/helper/date-validator.utils';
 
 @Injectable()
 export class PlayerService {
-  create(createPlayerDto: CreatePlayerDto) {
-    return 'This action adds a new player';
-  }
+    constructor(
+        private readonly playerRepository: PlayerRepository,
+        private readonly teamRepository: TeamRepository
+    ) {}
 
-  findAll() {
-    return `This action returns all player`;
-  }
+    private async checkTeamId(teamId: number): Promise<void> {
+        const teamIds = await this.teamRepository.getAllTeamID();
+        if (!teamIds.includes(teamId)) {
+            throw new NotFoundException('Team not found');
+        }
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} player`;
-  }
+    private async checkTeamHasPlayer(teamId: number, playerId: number): Promise<void> {
+        const player = await this.playerRepository.findByPlayerIdAndTeamId(playerId, teamId);
+        if (!player) {
+            throw new NotFoundException('Player may be not in this team');
+        }
+    }
 
-  update(id: number, updatePlayerDto: UpdatePlayerDto) {
-    return `This action updates a #${id} player`;
-  }
+    async getAllPlayersByTeamId(teamId: number): Promise<Player[]> {
+        await this.checkTeamId(teamId);
+        const players = await this.playerRepository.getAllPlayersByTeamId(teamId);
+        if (players.length === 0) {
+            throw new NotFoundException('Player not found');
+        }
+        return players;
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} player`;
-  }
+    async getTotalPlayers(teamId: number): Promise<number> {
+        await this.checkTeamId(teamId);
+        return this.playerRepository.getTotalPlayersByTeamId(teamId);
+    }
+
+    async createPlayer(
+        teamId: number,
+        playerName: string,
+        dob: string,
+        phoneNumber: string
+    ): Promise<Player> {
+        await this.checkTeamId(teamId);
+
+        if (dob && !DateValidatorUtils.isBeforeToday(new Date(dob.trim()))) {
+            throw new BadRequestException('Date of birth must be before today');
+        }
+
+        const newPlayer = this.playerRepository.create({
+            
+            playerName: playerName.trim(),
+            dateOfBirth: dob,
+            phone: phoneNumber,
+            createdAt: new Date()
+        });
+
+        return this.playerRepository.save(newPlayer);
+    }
+
+    async updatePlayer(
+        teamId: number,
+        playerId: number,
+        playerName: string,
+        dob: string,
+        phoneNumber: string
+    ): Promise<Player> {
+        await this.checkTeamId(teamId);
+        
+        const existingPlayer = await this.playerRepository.findOne({
+            where: { playerId }
+        });
+        
+        if (!existingPlayer) {
+            throw new NotFoundException('Player not found');
+        }
+        
+        await this.checkTeamHasPlayer(teamId, playerId);
+
+        if (dob && !DateValidatorUtils.isBeforeToday(new Date(dob.trim()))) {
+            throw new BadRequestException('Date of birth must be before today');
+        }
+
+        Object.assign(existingPlayer, {
+            playerName: playerName.trim(),
+            dateOfBirth: dob,
+            phone: phoneNumber,
+            updatedAt: new Date()
+        });
+
+        return this.playerRepository.save(existingPlayer);
+    }
+
+    async deletePlayer(teamId: number, playerId: number): Promise<Player> {
+        await this.checkTeamId(teamId);
+        
+        const existingPlayer = await this.playerRepository.findOne({
+            where: { playerId }
+        });
+        
+        if (!existingPlayer) {
+            throw new NotFoundException('Player not found');
+        }
+        
+        await this.checkTeamHasPlayer(teamId, playerId);
+        await this.playerRepository.remove(existingPlayer);
+        
+        return existingPlayer;
+    }
+
+    async getPlayerByPlayerId(teamId: number, playerId: number): Promise<Player> {
+        await this.checkTeamId(teamId);
+        const player = await this.playerRepository.findByPlayerIdAndTeamId(playerId, teamId);
+        if (!player) {
+            throw new NotFoundException('Player not found');
+        }
+        return player;
+    }
+
+    async deleteAllPlayerByTournamentId(tournamentId: number): Promise<void> {
+        await this.playerRepository.deleteAllPlayerByTournamentId(tournamentId);
+    }
 }

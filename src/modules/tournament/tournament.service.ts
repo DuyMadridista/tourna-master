@@ -17,6 +17,8 @@ import { TournamentGeneralDto } from './dto/TournamentGeneral.dto';
 import { LeaderBoardDetailDto } from 'src/modules/match/dto/LeaderBoardDetailDto';
 import { SuccessResponseDto } from 'src/helper/successResponse.dto';
 import { TournamentRepository } from './tournament.repository';
+import e from 'express';
+import { EventDate } from '../event-date/entities/event-date.entity';
 
 @Injectable()
 export class TournamentService {
@@ -57,7 +59,7 @@ export class TournamentService {
         pageSize,
         sortType,
         field,
-        status,
+        status, 
         search,
         categoryId
       );
@@ -171,7 +173,7 @@ export class TournamentService {
       await this.organizerTournamentService.deleteAllByTournamentId(tournamentId);
       const organizers = await Promise.all(
         UpdateTournamentDto.organizers.map(async userId => ({
-          userId: (await this.userService.getUserById(userId)).id,
+          userId: userId,
           tournamentId
         }))
       );
@@ -210,7 +212,7 @@ export class TournamentService {
       throw new BadRequestException('Cannot add event date that is before today');
     }
 
-    const newEventDates = UpdateTournamentDto.eventDates.map(date => ({
+    const newEventDates : EventDate[] = UpdateTournamentDto.eventDates.map(date => ({
       tournamentId,
       date,
       startTime: '00:00:00',
@@ -245,7 +247,7 @@ export class TournamentService {
 
     // Update tournament
     if (UpdateTournamentDto.title) tournament.title = UpdateTournamentDto.title;
-    if (UpdateTournamentDto.description) tournament.description = UpdateTournamentDto.description;
+    if (UpdateTournamentDto.description) tournament.description = UpdateTournamentDto.description;   
     if (UpdateTournamentDto.categoryId) {
       const category = await this.categoryService.findCategoryById(UpdateTournamentDto.categoryId);
       if (!category) throw new NotFoundException('Category not found');
