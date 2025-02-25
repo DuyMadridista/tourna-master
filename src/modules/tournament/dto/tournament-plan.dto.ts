@@ -1,3 +1,4 @@
+import { LocalTime } from '@js-joda/core';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class TournamentPlanDto {
@@ -5,13 +6,13 @@ export class TournamentPlanDto {
         description: 'Default start time for tournament matches',
         example: '09:00:00'
     })
-    startTimeDefault: string; // LocalTime equivalent in TypeScript
+    startTimeDefault: LocalTime; // LocalTime equivalent in TypeScript
 
     @ApiProperty({
         description: 'Default end time for tournament matches',
         example: '17:00:00'
     })
-    endTimeDefault: string; // LocalTime equivalent in TypeScript
+    endTimeDefault: LocalTime; // LocalTime equivalent in TypeScript
 
     @ApiProperty({
         description: 'Time between matches in minutes',

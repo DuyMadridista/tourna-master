@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsString, IsInt, MaxLength, MinLength, ArrayNotEmpty, IsArray, IsDate, Matches } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { LocalDate } from '@js-joda/core';
 
 export class CreateTournamentDto {
   @Matches(/^[a-zA-Z0-9\p{L}\s]*$/u, {
@@ -18,9 +19,9 @@ export class CreateTournamentDto {
   @IsNotEmpty({ message: 'Event dates must not be null' })
   @IsArray()
   @ArrayNotEmpty({ message: 'Event dates array must not be empty' })
-  @Type(() => Date)
+  @Type(() => LocalDate)
   @IsDate({ each: true, message: 'Each event date must be a valid date' })
-  eventDates: Date[];
+  eventDates: LocalDate[];
 
   @MaxLength(100, { message: 'Tournament description must be less than 100 characters' })
   @IsString()

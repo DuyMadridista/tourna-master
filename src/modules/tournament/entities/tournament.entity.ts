@@ -15,6 +15,7 @@ import {
   import { TournamentFormat } from '../../../enums/tournament-format.enum';
 import { Team } from 'src/modules/team/entities/team.entity';
 import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
+import { LocalTime, LocalDate, LocalDateTime } from '@js-joda/core';
   
   @Entity('tournaments')
   export class Tournament {
@@ -28,10 +29,10 @@ import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
     categoryId: number;
   
     @CreateDateColumn({ name: 'created_at' })
-    createdAt: Date;
+    createdAt: LocalDateTime;
   
     @UpdateDateColumn({ name: 'updated_at' })
-    updatedAt: Date;
+    updatedAt: LocalDateTime;
   
     @Column({
       type: 'enum',
@@ -47,10 +48,10 @@ import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
     timeBetween: number;
   
     @Column({ name: 'start_time_default', type: 'time', nullable: true })
-    startTimeDefault: string;
+    startTimeDefault: LocalTime;
   
     @Column({ name: 'end_time_default', type: 'time', nullable: true })
-    endTimeDefault: string;
+    endTimeDefault: LocalTime;
   
     @Column({
       type: 'enum',
@@ -83,15 +84,15 @@ import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
 
     @BeforeInsert()
     setDefaultValues() {
-      this.createdAt = new Date();
-      this.startTimeDefault = '00:00:00';
-      this.endTimeDefault = '23:59:59';
+      this.createdAt = LocalDateTime.now();
+      this.startTimeDefault =  LocalTime.parse('00:00:00');
+      this.endTimeDefault =   LocalTime.parse('23:59:59'); 
       this.isDeleted = false;
     }
   
     @BeforeUpdate()
     updateTimestamp() {
-      this.updatedAt = new Date();
+      this.updatedAt = LocalDateTime.now();
     }
     constructor(init?: Partial<Tournament>) {
       Object.assign(this, init);

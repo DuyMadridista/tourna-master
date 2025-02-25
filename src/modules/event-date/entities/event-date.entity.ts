@@ -9,6 +9,7 @@ import {
   } from 'typeorm';
   import { Tournament } from '../../tournament/entities/tournament.entity';
   import { Match } from '../../match/entities/match.entity';
+import { LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
   
   @Entity('event_dates')
   export class EventDate {
@@ -22,21 +23,21 @@ import {
     tournament: Tournament;
   
     @Column({ name: 'date', type: 'date', nullable: false })
-    date: Date;
+    date: LocalDate;
   
     @Column({ name: 'start_time', type: 'time', nullable: true })
-    startTime: string;
+    startTime: LocalTime;
   
     @Column({ name: 'end_time', type: 'time', nullable: true })
-    endTime: string;
+    endTime: LocalTime;
   
     @OneToMany(() => Match, (match) => match.eventDate, { cascade: true })
     matches: Match[];
   
     @CreateDateColumn({ name: 'created_at' })
-    createdAt: Date;
+    createdAt: LocalDateTime;
   
     @UpdateDateColumn({ name: 'updated_at' })
-    updatedAt: Date;
+    updatedAt: LocalDateTime;
   }
   

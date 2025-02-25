@@ -7,7 +7,6 @@ import { TournamentPlanDto } from 'src/modules/tournament/dto/tournament-plan.dt
 import { Not, In } from 'typeorm';
 import { TournamentDto } from './dto/tournament.dto';
 import { TournamentGeneralDto } from './dto/TournamentGeneral.dto';
-import { SuccessResponseDto } from 'src/helper/successResponse.dto';
 import { EventDateService } from '../event-date/event-date.service';
 import { UserService } from '../user/user.service';
 

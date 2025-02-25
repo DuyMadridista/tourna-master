@@ -19,6 +19,7 @@ import { SuccessResponseDto } from 'src/helper/successResponse.dto';
 import { TournamentRepository } from './tournament.repository';
 import e from 'express';
 import { EventDate } from '../event-date/entities/event-date.entity';
+import { LocalDate, LocalDateTime } from '@js-joda/core';
 
 @Injectable()
 export class TournamentService {
@@ -119,7 +120,7 @@ export class TournamentService {
   async createTournament(
     title: string,
     categoryId: number,
-    eventDates: Date[],  
+    eventDates: LocalDate[],  
     desc: string,
   ): Promise<Tournament> {
     if (!eventDates.length) {
@@ -127,7 +128,7 @@ export class TournamentService {
     }
 
     for (const date of eventDates) {
-      if (date < new Date()) {
+      if (date < LocalDate.now()) {
         throw new BadRequestException('Cannot add a date in the past.');
       }
     }
@@ -197,7 +198,7 @@ export class TournamentService {
       for (const eventDate of eventDates) {
         const date = eventDate.date;
         if (!UpdateTournamentDto.eventDates.includes(date)) {
-          if (date <= new Date()) {
+          if (date <= LocalDate.now()) {  
             throw new BadRequestException('Cannot delete event date that is today or before');
           }
           if (await this.matchService.isHaveMatchInDate(eventDate.id)) {
@@ -208,7 +209,7 @@ export class TournamentService {
       }
     }
 
-    if (UpdateTournamentDto.eventDates.some(date => date < new Date())) {
+    if (UpdateTournamentDto.eventDates.some(date => date < LocalDate.now())) {
       throw new BadRequestException('Cannot add event date that is before today');
     }
 
@@ -254,7 +255,7 @@ export class TournamentService {
       tournament.categoryId = category.id;
     }
 
-    tournament.updatedAt = new Date();
+    tournament.updatedAt = LocalDateTime.now();
     await this.tournamentRepository.save(tournament);
 
     return {

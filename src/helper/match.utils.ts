@@ -1,24 +1,94 @@
 import { Injectable } from '@nestjs/common';
-import { MatchDto } from '../modules/match/dto/MatchDto';  // Import MatchDto
-import { Match } from '../modules/match/entities/match.entity';  // Import Match entity
-
+import { TeamService } from 'src/modules/team/team.service';
+import { Match } from 'src/modules/match/entities/match.entity';
+import { MatchDto } from 'src/modules/match/dto/MatchDto';
+import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
+import { GenerationDto } from 'src/modules/match/dto/GenerationDto';
+import { TypeMatch } from '../enums/match-type.enum';
+import { CommonHelper } from './common-helper';
+import { LocalDateTime, LocalTime } from '@js-joda/core';
 @Injectable()
 export class MatchUtils {
+  constructor(private readonly teamService: TeamService) {}
 
-  convertMatchtoMatchDTO(match: Match): MatchDto {
+  numberMatchTimes(schedule: Map<EventDate, Array<Array<string>>>): number {
+    return Array.from(schedule.values()).reduce((acc, times) => acc + times.length, 0);
+  }
+
+  compareNumMatchAndNumMatchTime(numMatch: number, numMatchTime: number): boolean {
+    return numMatchTime >= numMatch;
+  }
+
+  async convertMatchToMatchDTO(match: Match): Promise<MatchDto> {
     const matchDTO = new MatchDto();
     matchDTO.id = match.id;
+    if (match.type === TypeMatch.MATCH) {
+      matchDTO.teamOne = await this.teamService.getTeamById(match.teamOne.teamId);
+      matchDTO.teamTwo = await this.teamService.getTeamById(match.teamTwo.teamId);
+    }
+    matchDTO.timeDuration = match.matchDuration;
     matchDTO.startTime = match.startTime;
     matchDTO.endTime = match.endTime;
+    matchDTO.eventDateId = match.eventDate.id;
+    matchDTO.type = match.type;
     matchDTO.title = match.title;
-    // Convert other properties as needed
     return matchDTO;
   }
 
-  convertMatchToMatchDto(matches: Match[]): MatchDto {
-    return matches
-      .map(this.convertMatchtoMatchDTO)  // Map each Match to MatchDto
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));  // Sort by startTime (assuming startTime is a string)
+  async createGeneration(eventDate: EventDate | null, matchDTOs: MatchDto[]): Promise<GenerationDto> {
+    const generationDTO = new GenerationDto();
+    if (eventDate) {
+      generationDTO.eventDateId = eventDate.id;
+      generationDTO.date = eventDate.date;
+      generationDTO.startTime = eventDate.startTime;
+      generationDTO.endTime = eventDate.endTime;
+      generationDTO.matches = matchDTOs.filter(match => match.eventDateId === eventDate.id);
+    }
+    return generationDTO;
   }
 
+  public timeSheet(
+    duration: number,
+    betweenTime: number,
+    eventDates: EventDate[],
+  ): Map<EventDate, number> {
+    const numberOfTimeEachEvent = new Map<EventDate, number>();
+    const endDate = LocalTime.of(23, 59, 59);
+  
+    for (const eventDate of eventDates) {
+      let startMatch = eventDate.startTime;
+      let endMatch = startMatch.plusMinutes(duration);
+      const thisEventDate = LocalDateTime.of(eventDate.date, endDate);
+      let checkDateTime = LocalDateTime.of(eventDate.date, startMatch);
+      let countTime = 0;
+  
+      while (
+        startMatch.isBefore(eventDate.endTime) &&
+        endMatch.isBefore(eventDate.endTime) &&
+        checkDateTime.isBefore(thisEventDate)
+      ) {
+        countTime++;
+        startMatch = endMatch.plusMinutes(betweenTime);
+        endMatch = startMatch.plusMinutes(duration);
+        checkDateTime = checkDateTime.plusMinutes(betweenTime + duration);
+      }
+  
+      numberOfTimeEachEvent.set(eventDate, countTime);
+    }
+  
+    return new Map(
+      [...numberOfTimeEachEvent.entries()].sort((a, b) =>
+       a[0].date.compareTo((b[0].date)),
+      ),
+    );
+  }
+
+  async convertMatchListToMatchDtoList(matches: Match[]): Promise<MatchDto[]> {
+    return Promise.all(matches.map(match => this.convertMatchToMatchDTO(match)));
+  }
+
+  async convertMatchToMatchDto(matches: Match[]): Promise<MatchDto[]> {
+    const matchDtos = await this.convertMatchListToMatchDtoList(matches);
+    return matchDtos.sort((a, b) => a.startTime.compareTo( b.startTime));
+  }
 }

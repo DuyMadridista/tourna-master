@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { TypeMatch } from 'src/enums/match-type.enum';
 import { Team } from '../../team/entities/team.entity'; 
+import { LocalTime } from '@js-joda/core';
 export class MatchDto {
   id: number;
 
@@ -20,12 +21,12 @@ export class MatchDto {
   teamTwoResult?: number;
 
   @IsOptional()
-  @Type(() => Date)
-  startTime?: Date;
+  @Type(() => LocalTime)
+  startTime?: LocalTime;
 
   @IsOptional()
-  @Type(() => Date)
-  endTime?: Date;
+  @Type(() => LocalTime)
+  endTime?: LocalTime;
 
   @IsNotEmpty()
   @IsInt()
@@ -43,7 +44,9 @@ export class MatchDto {
   @IsInt()
   timeDuration: number;
 
-  constructor(partial: Partial<MatchDto>) {
-    Object.assign(this, partial);
+  constructor(partial?: Partial<MatchDto>) {
+    if (partial) {
+      Object.assign(this, partial);
+    }
   }
 }

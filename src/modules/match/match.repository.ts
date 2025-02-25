@@ -3,6 +3,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Match } from './entities/match.entity';
 import { LeaderBoardDto } from './dto/LeaderBoardDto';
 import { MatchOfLeaderBoardDto } from './dto/MatchOfLeaderBoardDto';
+import { LocalTime } from '@js-joda/core';
 
 @Injectable()
 export class MatchRepository extends Repository<Match> {
@@ -98,7 +99,7 @@ export class MatchRepository extends Repository<Match> {
       .getMany();
   }
 
-  async getAllByEventDateIdOrOrderByStartTime(eventDateId: number, startTime: string): Promise<Match[]> {
+  async getAllByEventDateIdOrOrderByStartTime(eventDateId: number, startTime: LocalTime): Promise<Match[]> {
     return this.createQueryBuilder('match')
       .innerJoin('match.eventDate', 'eventDate')
       .where('eventDate.id = :eventDateId', { eventDateId })

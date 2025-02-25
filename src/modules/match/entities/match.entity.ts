@@ -10,6 +10,7 @@ import {
   import { Team } from '../../team/entities/team.entity';
   import { EventDate } from '../../event-date/entities/event-date.entity';
   import { TypeMatch } from '../../../enums/match-type.enum';
+import { LocalTime } from '@js-joda/core';
   
   @Entity('matches')
   export class Match {
@@ -31,10 +32,10 @@ import {
     teamTwoResult: number;
   
     @Column({ name: 'start_time', type: 'time', nullable: true })
-    startTime: string;
+    startTime: LocalTime;
   
     @Column({ name: 'end_time', type: 'time', nullable: true })
-    endTime: string;
+    endTime: LocalTime;
   
     @Column({ name: 'duration', type: 'int', nullable: true })
     matchDuration: number;
