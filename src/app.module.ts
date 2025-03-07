@@ -11,7 +11,9 @@ import { HttpExceptionFilter } from './exception-filter/http-exception.filter';
 import { APP_FILTER } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CategoryModule } from './modules/category/category.module';
 import typeormConfig from './config/typeorm.config';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -25,7 +27,7 @@ import typeormConfig from './config/typeorm.config';
       useFactory: (configService: ConfigService) => ({
         ...configService.get('typeorm'),
       }),
-    }),UserModule, TournamentModule, TeamModule, PlayerModule, MatchModule, EventDateModule],
+    }),AuthModule,UserModule, TournamentModule, TeamModule, PlayerModule, MatchModule, EventDateModule, CategoryModule],
   controllers: [AppController],
   providers: [ {
     provide: APP_FILTER,

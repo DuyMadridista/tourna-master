@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Match } from './entities/match.entity';
@@ -22,17 +22,21 @@ import { TournamentRepository } from '../tournament/tournament.repository';
 import { TeamRepository } from '../team/team.repository';
 import { ChronoUnit, LocalDate, LocalTime } from '@js-joda/core';
 import { MATCHES } from 'class-validator';
+import { Tournament } from '../tournament/entities/tournament.entity';
 @Injectable()
 export class MatchService {
 
   constructor(
     @InjectRepository(Match)
     private readonly matchRepository: MatchRepository,
+    @InjectRepository(Tournament)
+
     private readonly tournamentRepository: TournamentRepository,
+    @InjectRepository(Team)
     private readonly teamRepository: TeamRepository,
-
-
+    @Inject(forwardRef(() => TeamService)) 
     private readonly teamService: TeamService,
+    @Inject(forwardRef(() => EventDateService)) 
     private readonly eventDateService: EventDateService,
     private readonly matchUtils: MatchUtils
   ) {}
@@ -151,24 +155,6 @@ export class MatchService {
     return new Map([...schedule.entries()].sort((a, b) => a[0].date.compareTo(b[0].date)));
   }
 
-//   private calculateTimeSlots(
-//     duration: number,
-//     betweenTime: number,
-//     eventDates: EventDate[],
-//   ): Record<string, number> {
-//     const timeSlots: Record<string, number> = {};
-//     eventDates.forEach((eventDate) => {
-//       const start = DateTime.fromISO(eventDate.startTime, { zone: 'local' });
-// const end = DateTime.fromISO(eventDate.endTime, { zone: 'local' });
-//       const availableMinutes =
-//       end.diff(start, 'minutes');
-//       const slotCount = Math.floor(
-//         availableMinutes.as('minutes') / (duration + betweenTime),
-//       );
-//       timeSlots[eventDate.id] = slotCount;
-//     });
-//     return timeSlots;
-//   }
 
 async mappingMatchAndTime(
   matches: Team[][],

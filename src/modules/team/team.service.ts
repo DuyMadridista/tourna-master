@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Team } from './entities/team.entity';
@@ -14,6 +14,7 @@ export class TeamService {
   constructor(
     @InjectRepository(Team)
     private readonly teamRepository: Repository<Team>,
+    @Inject(forwardRef(() => TournamentRepository))
     private readonly tournamentRepository: TournamentRepository,
     // private readonly matchRepository: MatchRepository,
   ) {}
@@ -53,7 +54,10 @@ export class TeamService {
   }
 
   async createTeam(teamName: string, tournamentId: number): Promise<Team> {
-    const tournament = await this.tournamentRepository.findOne(tournamentId);
+    const tournament = await this.tournamentRepository.findOne({
+      where: { id: tournamentId },
+    });
+    
     if (!tournament) {
       throw new BadRequestException('Tournament has been deleted, discarded, or finished.');
     }
@@ -95,7 +99,10 @@ export class TeamService {
   }
 
   async deleteTeam(tournamentId: number, teamId: number): Promise<Team> {
-    const tournament = await this.tournamentRepository.findOne(tournamentId);
+    const tournament = await this.tournamentRepository.findOne({
+      where: { id: tournamentId },
+    });
+    
     if (!tournament) {
       throw new NotFoundException('Tournament not found.');
     }

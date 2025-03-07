@@ -3,12 +3,13 @@ import { TournamentStatus } from 'src/enums/tournament-status.enum';
 import { TournamentFormat } from 'src/enums/tournament-format.enum';
 import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
 import { UserDto } from 'src/modules/user/dto/user.dto';
+import { LocalDateTime } from '@js-joda/core';
 
 export class TournamentDto {
   id: number;
   title: string;
 //   category: CategoryDto;
-  createdAt: Date;
+  createdAt: LocalDateTime;
   status: TournamentStatus;
   matchDuration: number;
   format: TournamentFormat;

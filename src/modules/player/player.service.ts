@@ -4,11 +4,14 @@ import { Player } from '../player/entities/player.entity';
 import { PlayerRepository } from './player.repository';
 import { TeamRepository } from '../team/team.repository';
 import { DateValidatorUtils } from 'src/helper/date-validator.utils';
+import { Team } from '../team/entities/team.entity';
 
 @Injectable()
 export class PlayerService {
     constructor(
+        @InjectRepository(Player)
         private readonly playerRepository: PlayerRepository,
+        @InjectRepository(Team)
         private readonly teamRepository: TeamRepository
     ) {}
 

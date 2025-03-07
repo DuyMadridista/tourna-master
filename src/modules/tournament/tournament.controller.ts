@@ -23,7 +23,7 @@ export class TournamentController {
 
   @Get()
   async findAll(
-    @Query('size') pageSize: number = 10,
+    @Query('size') pageSize : number = 10,
     @Query('page') page: number = 1,
     @Query('sortValue') sortField: string = 'createdAt',
     @Query('sortType') sortType: 'ASC' | 'DESC' = 'DESC',

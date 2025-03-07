@@ -3,6 +3,7 @@ import { TournamentStatus } from 'src/enums/tournament-status.enum';
 // import { CategoryDto } from '../category/category.dto'
 import { OrganizerInGeneralDto } from '../../user/dto/OrganizerInGeneral.dto';
 import { EventDate } from '../../event-date/entities/event-date.entity';
+import { CategoryDto } from 'src/modules/category/dto/category.dto';
 
 export class TournamentGeneralDto {
   @ApiProperty({ description: 'Unique identifier of the tournament' })
@@ -17,8 +18,8 @@ export class TournamentGeneralDto {
   @ApiProperty({ description: 'Current status of the tournament', enum: TournamentStatus })
   status: TournamentStatus;
 
-//   @ApiProperty({ description: 'Category details of the tournament', type: () => CategoryDto })
-//   category: CategoryDto;
+  @ApiProperty({ description: 'Category details of the tournament', type: () => CategoryDto })
+  category: CategoryDto;
 
   @ApiProperty({
     description: 'List of organizers of the tournament',

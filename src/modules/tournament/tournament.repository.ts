@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Tournament } from './entities/tournament.entity';
 import { TournamentStatus } from 'src/enums/tournament-status.enum';
 import { TournamentPlanDto } from 'src/modules/tournament/dto/tournament-plan.dto';
@@ -11,20 +11,10 @@ import { EventDateService } from '../event-date/event-date.service';
 import { UserService } from '../user/user.service';
 
 @Injectable()
-export class TournamentRepository {
-    constructor(
-        @InjectRepository(Tournament)
-        private eventDateService: EventDateService,
-        private userService: UserService,
-        private readonly repository: Repository<Tournament>,
-    ) {}
-    async findOne(id: number): Promise<Tournament | null> {
-        return this.repository.findOne({
-            where: {
-                id,
-            },
-        });
-    }
+export class TournamentRepository extends Repository<Tournament> {
+  constructor(@InjectRepository(Tournament) private readonly repository: Repository<Tournament>) {
+    super(repository.target, repository.manager, repository.queryRunner);
+  }
 
     async findTournamentByIdAndNotDeleted(id: number): Promise<Tournament | null> {
         return this.repository.findOne({
@@ -185,20 +175,21 @@ export class TournamentRepository {
           .take(pageSize)
           .getManyAndCount();
     
-        const tournamentDtos = await Promise.all(
-          data.map(async (tournament) => {
-            const eventDates = await this.eventDateService.findAllByTournamentId(tournament.id);
-            const organizers = await this.userService.findUserByTournamentId(tournament.id);
-            return new TournamentDto({
-              ...tournament,
-              eventDates,
-              organizers,
-            });
-          }),
-        );
+        // const tournamentDtos = await Promise.all(
+        //   data.map(async (tournament) => {
+        //     const eventDates = await this.eventDateService.findAllByTournamentId(tournament.id);
+        //     const organizers = await this.userService.findUserByTournamentId(tournament.id);
+        //     return new TournamentDto({
+        //       ...tournament,
+        //       eventDates,
+        //       organizers,
+        //     });
+        //   }),
+        // );
     
         return {
-          data: tournamentDtos,
+          // data: tournamentDtos,
+          data:null,
           total,
           success: true,
           additionalData: { totalTournament: total },
@@ -215,24 +206,26 @@ export class TournamentRepository {
           throw new NotFoundException('Tournament not found');
         }
     
-        const currentUser = await this.userService.getCurrentUser();
-        const isAdmin = currentUser.roles.includes('ADMIN');
-        const isOrganizer = await this.userService.isOrganizerOfTournament(currentUser.username, tournamentId);
+        // const currentUser = await this.userService.getCurrentUser();
+        // const isAdmin = currentUser.roles.includes('ADMIN');
+        // const isOrganizer = await this.userService.isOrganizerOfTournament(currentUser.username, tournamentId);
     
-        if (!isAdmin && !isOrganizer) {
-          throw new UnauthorizedException("You don't have permission to view this tournament");
-        }
+        // if (!isAdmin && !isOrganizer) {
+        //   throw new UnauthorizedException("You don't have permission to view this tournament");
+        // }
     
-        const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
-        const organizers = await this.userService.findOrganizerInGeneral(tournamentId);
+        // const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
+        // const organizers = await this.userService.findOrganizerInGeneral(tournamentId);
     
         const tournamentGeneralDto = new TournamentGeneralDto({
           id: tournament.id,
           title: tournament.title,
           description: tournament.description,
           status: tournament.status,
-          organizers,
-          eventDates,
+          organizers: null,
+          eventDates: null
+          // organizers,
+          // eventDates,
         });
     
         return {
@@ -242,7 +235,5 @@ export class TournamentRepository {
         };
       }
     
-    async save(tournament: Tournament): Promise<Tournament> {
-        return this.repository.save(tournament);
-    }
+
 }

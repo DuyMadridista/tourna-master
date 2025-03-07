@@ -1,12 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { Tournament } from './entities/tournament.entity';
 import { UserService } from '../user/user.service';
 import { TeamService } from '../team/team.service';
 import { EventDateService } from '../event-date/event-date.service';
-// import { CategoryService } from '../category/category.service';
-// import { OrganizerTournamentService } from '../organizer-tournament/organizer-tournament.service';
+import { CategoryService } from '../category/category.service';
 import { MatchService } from '../match/match.service';
 import { PlayerService } from '../player/player.service';
 import { TournamentStatus } from 'src/enums/tournament-status.enum';
@@ -17,9 +16,10 @@ import { TournamentGeneralDto } from './dto/TournamentGeneral.dto';
 import { LeaderBoardDetailDto } from 'src/modules/match/dto/LeaderBoardDetailDto';
 import { SuccessResponseDto } from 'src/helper/successResponse.dto';
 import { TournamentRepository } from './tournament.repository';
-import e from 'express';
 import { EventDate } from '../event-date/entities/event-date.entity';
-import { LocalDate, LocalDateTime } from '@js-joda/core';
+import { LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
+import { CurrentUserProvider } from 'src/helper/current-user.provider';
+// import { OrganizerTournamentService } from '../organizer-tournament/organizer-tournament.service';
 
 @Injectable()
 export class TournamentService {
@@ -30,13 +30,22 @@ export class TournamentService {
     @InjectRepository(Tournament)
     private tournamentRepository: TournamentRepository,
     private userService: UserService,
+    @Inject(forwardRef(() => TeamService))
     private teamService: TeamService,
+    @Inject(forwardRef(() => EventDateService))
+
     private eventDateService: EventDateService,
+    @Inject(forwardRef(() => CategoryService))
+
     private categoryService: CategoryService,
     private entityManager: EntityManager,
-    private organizerTournamentService: OrganizerTournamentService,
+    // private organizerTournamentService: OrganizerTournamentService,
+    @Inject(forwardRef(() => MatchService))
     private matchService: MatchService,
+    @Inject(forwardRef(() => PlayerService))
+
     private playerService: PlayerService,
+    private readonly currentUserProvider: CurrentUserProvider
   ) {}
 
   async getAll(
@@ -49,7 +58,7 @@ export class TournamentService {
     categoryId: number,
   ): Promise<any> {
     search = search.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    
+    const user = this.currentUserProvider.getUser();
     const isAdmin = user.role === UserRole.ADMIN;
     const isOrganizer = user.role === UserRole.ORGANIZER;
 
@@ -81,18 +90,11 @@ export class TournamentService {
   }
 
   async deleteTournament(id: number): Promise<Tournament> {
+    const user = this.currentUserProvider.getUser();
     const tournament = await this.tournamentRepository.findTournamentByIdAndNotDeleted(id);
     if (!tournament) {
       throw new NotFoundException('Tournament not found');
     }
-
-    const organizerTournaments = await this.organizerTournamentService.findAllByTournamentId(id);
-    const hasPermission = organizerTournaments.some(ot => ot.userId === user.id) || user.role === UserRole.ADMIN;
-
-    if (!hasPermission) {
-      throw new NotFoundException('Tournament not found');
-    }
-
     tournament.isDeleted = true;
     tournament.deletedAt = new Date();
     tournament.status = TournamentStatus.DELETED;
@@ -102,7 +104,6 @@ export class TournamentService {
       this.playerService.deleteAllPlayerByTournamentId(tournament.id),
       this.teamService.deleteTeamByTournamentId(id),
       this.eventDateService.deleteAllByTournamentId(tournament.id),
-      this.organizerTournamentService.deleteAllByTournamentId(tournament.id)
     ]);
 
     return await this.tournamentRepository.save(tournament);
@@ -126,7 +127,7 @@ export class TournamentService {
     if (!eventDates.length) {
       throw new BadRequestException('Event Date must not be null');
     }
-
+    const user = this.currentUserProvider.getUser();
     for (const date of eventDates) {
       if (date < LocalDate.now()) {
         throw new BadRequestException('Cannot add a date in the past.');
@@ -149,12 +150,14 @@ export class TournamentService {
     }));
 
     if (eventDates) {
-      const events = Array.from(eventDates).map(date => ({
-        tournamentId: tournament.id,
-        date,
-        startTime: null,
-        endTime: null
-      }));
+      const events = Array.from(eventDates).map(date => {
+        const event = new EventDate();
+        event.tournament = tournament;
+        event.date = date;
+        event.startTime = null;
+        event.endTime = null;
+        return event;
+      });
       await this.eventDateService.saveAll(events);
     }
 
@@ -170,16 +173,16 @@ export class TournamentService {
     UpdateTournamentDto: UpdateTournamentDto,
     tournamentId: number
   ): Promise<void> {
-    if (UpdateTournamentDto.organizers) {
-      await this.organizerTournamentService.deleteAllByTournamentId(tournamentId);
-      const organizers = await Promise.all(
-        UpdateTournamentDto.organizers.map(async userId => ({
-          userId: userId,
-          tournamentId
-        }))
-      );
-      await this.organizerTournamentService.saveAll(organizers);
-    }
+    // if (UpdateTournamentDto.organizers) {
+    //   await this.organizerTournamentService.deleteAllByTournamentId(tournamentId);
+    //   const organizers = await Promise.all(
+    //     UpdateTournamentDto.organizers.map(async userId => ({
+    //       userId: userId,
+    //       tournamentId
+    //     }))
+    //   );
+    //   await this.organizerTournamentService.saveAll(organizers);
+    // }
   }
 
   private async editEventDatesInGeneral(
@@ -213,12 +216,14 @@ export class TournamentService {
       throw new BadRequestException('Cannot add event date that is before today');
     }
 
-    const newEventDates : EventDate[] = UpdateTournamentDto.eventDates.map(date => ({
-      tournamentId,
-      date,
-      startTime: '00:00:00',
-      endTime: '23:59:59'
-    }));
+    const newEventDates: EventDate[] = UpdateTournamentDto.eventDates.map(date => {
+      const event = new EventDate();
+      event.tournament = tournament; 
+      event.date = date;
+      event.startTime = LocalTime.of(0, 0, 0);
+      event.endTime = LocalTime.of(23, 59, 59);
+      return event;
+    });
 
     await this.eventDateService.saveAll(newEventDates);
   }
@@ -252,7 +257,7 @@ export class TournamentService {
     if (UpdateTournamentDto.categoryId) {
       const category = await this.categoryService.findCategoryById(UpdateTournamentDto.categoryId);
       if (!category) throw new NotFoundException('Category not found');
-      tournament.categoryId = category.id;
+      tournament.categoryId = category.categoryId;
     }
 
     tournament.updatedAt = LocalDateTime.now();
@@ -304,5 +309,8 @@ export class TournamentService {
       throw new NotFoundException('Tournament not found');
     }
     return plan;
+  }
+  async findTournamentByCategoryId(categoryId: number): Promise<Tournament[]> {
+    return this.tournamentRepository.findTournamentByCategoryId(categoryId);
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, forwardRef, Inject } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EventDate } from './entities/event-date.entity';
 import { EventDateRepository } from './event-date.repository';
@@ -7,14 +7,22 @@ import { SuccessResponseDto } from 'src/helper/successResponse.dto';
 import * as moment from 'moment';
 import { TournamentRepository } from '../tournament/tournament.repository';
 import { Duration, LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Match } from '../match/entities/match.entity';
+import { Tournament } from '../tournament/entities/tournament.entity';
 
 @Injectable()
 export class EventDateService {
   constructor(
     private readonly dataSource: DataSource,
+            @InjectRepository(EventDate)
     private readonly eventDateRepository: EventDateRepository,
-    private readonly matchRepository: MatchRepository,
+    @InjectRepository(Tournament)
+
     private readonly tournamentRepository: TournamentRepository,
+    @InjectRepository(Match)
+
+    private readonly matchRepository: MatchRepository,
   ) {}
 
   async findAllByTournamentId(tournamentId: number): Promise<EventDate[]> {

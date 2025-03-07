@@ -14,5 +14,6 @@ import { User } from './entities/user.entity';
     provide: UserRepository, 
     useClass: UserRepository,
   },],
+  exports: [UserService],
 })
 export class UserModule {}

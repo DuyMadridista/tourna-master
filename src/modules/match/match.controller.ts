@@ -1,34 +1,56 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param } from '@nestjs/common';
 import { MatchService } from './match.service';
-import { CreateMatchDto } from './dto/create-match.dto';
-import { UpdateMatchDto } from './dto/update-match.dto';
+import { RequestDragDropMatch } from './dto/RequestDragDropMatch';
+import { SuccessResponse } from 'src/helper/OkResponse';
+import * as matchEntity from './entities/match.entity';
 
-@Controller('match')
+@Controller('tournament/:tournamentId/match')
 export class MatchController {
   constructor(private readonly matchService: MatchService) {}
 
-  @Post()
-  create(@Body() createMatchDto: CreateMatchDto) {
-    return this.matchService.create(createMatchDto);
+  @Get('result')
+  async getAllMatchResult(@Param('tournamentId') tournamentId: number) {
+    const result = await this.matchService.getAllResult(tournamentId);
+    return  SuccessResponse(true, result.length, result);
   }
 
-  @Get()
-  findAll() {
-    return this.matchService.findAll();
+  @Put('result/:matchID')
+  async updateMatchResult(
+    @Param('tournamentId') tournamentId: number,
+    @Param('matchID') matchID: number,
+    @Body() match: matchEntity.Match,
+  ) {
+    const updateMatch = await this.matchService.updateMatchResult(
+      tournamentId,
+      matchID,
+      match.teamOneResult,
+      match.teamTwoResult,
+    );
+    return SuccessResponse(true, 1, updateMatch);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.matchService.findOne(+id);
+  @Put(':matchID')
+  async updateMatchDetails(
+    @Param('tournamentId') tournamentId: number,
+    @Param('matchID') matchID: number,
+    @Body() updateMatchDto: matchEntity.Match,
+  ) {
+    return this.matchService.updateMatchDetails(
+      tournamentId,
+      matchID,
+      updateMatchDto.teamOne.teamId,
+      updateMatchDto.teamTwo.teamId,
+      updateMatchDto.matchDuration,
+    );
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateMatchDto: UpdateMatchDto) {
-    return this.matchService.update(+id, updateMatchDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.matchService.remove(+id);
+  @Put('dragAndDrop')
+  async dragAndDropMatchOrEvent(@Body() request: RequestDragDropMatch) {
+    const data = await this.matchService.dragAndDropMatch(
+      request.matchId,
+      request.newEventDateId,
+      request.newIndexOfMatch,
+    );
+    return SuccessResponse(true, data.length, data);
   }
 }

@@ -1,18 +1,23 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TournamentService } from './tournament.service';
 import { TournamentController } from './tournament.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TournamentRepository } from './tournament.repository';
 import { Tournament } from './entities/tournament.entity';
-import { UserService } from '../user/user.service';
-import { EventDateService } from '../event-date/event-date.service';
+import { UserModule } from '../user/user.module';
+import { TeamModule } from '../team/team.module';
+import { EventDateModule } from '../event-date/event-date.module';
+import { CategoryModule } from '../category/category.module';
+import { MatchModule } from '../match/match.module';
+import { PlayerModule } from '../player/player.module';
+import { CurrentUserProvider } from 'src/helper/current-user.provider';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([TournamentRepository]), TypeOrmModule.forFeature([Tournament])],
+  imports: [TypeOrmModule.forFeature([Tournament]), UserModule,  forwardRef(() => TeamModule),  forwardRef(() => EventDateModule), forwardRef(() => CategoryModule), forwardRef(() => MatchModule), forwardRef(() => PlayerModule)],
   controllers: [TournamentController],
-  providers: [TournamentService, UserService,EventDateService,   {
-      provide: TournamentRepository, 
-      useClass: TournamentRepository,
-    }],
+  providers: [TournamentService,TournamentRepository, CurrentUserProvider],
+  exports: [TournamentService, TournamentRepository],
 })
 export class TournamentModule {}
+
+

@@ -4,29 +4,25 @@ import { EventDate } from './entities/event-date.entity';
 import { EventDateAdditionalDto } from './dto/event-date-additional.dto';
 
 @Injectable()
-export class EventDateRepository {
-  private repository: Repository<EventDate>;
+export class EventDateRepository extends Repository<EventDate> {
 
-  constructor(private readonly dataSource: DataSource) {
-    this.repository = this.dataSource.getRepository(EventDate);
+  constructor(private dataSource: DataSource) {
+    super(EventDate, dataSource.createEntityManager());
   }
 
   async findAllByTournamentId(tournamentId: number): Promise<EventDate[]> {
-    return this.repository.find({ where: { tournament: { id: tournamentId} } });
-  }
-  async save(eventDate: EventDate): Promise<EventDate> {
-    return this.repository.save(eventDate);
+    return this.find({ where: { tournament: { id: tournamentId} } });
   }
 
   async saveAll(eventDates: EventDate[]): Promise<void> {
-    await this.repository.save(eventDates);
+    await this.save(eventDates);
   }
 
   async findById(id: number): Promise<EventDate> {
-    return this.repository.findOne({ where: { id } });
+    return this.findOne({ where: { id } });
   }
   async findAllDateByTournamentId(tournamentId: number): Promise<Date[]> {
-    const eventDates = await this.repository
+    const eventDates = await this
       .createQueryBuilder('event_date')
       .select('event_date.date', 'date')
       .where('event_date.tournament_id = :tournamentId', { tournamentId })
@@ -36,7 +32,7 @@ export class EventDateRepository {
   }
 
   async deleteAllByTournamentId(tournamentId: number): Promise<void> {
-    await this.repository
+    await this
       .createQueryBuilder()
       .delete()
       .from(EventDate)
@@ -45,7 +41,7 @@ export class EventDateRepository {
   }
 
   async deleteByEventDateId(eventDateId: number): Promise<void> {
-    await this.repository
+    await this
       .createQueryBuilder()
       .delete()
       .from(EventDate)
@@ -56,7 +52,7 @@ export class EventDateRepository {
   async findAllEventDatesAndCountMatch(
     tournamentId: number,
   ): Promise<EventDateAdditionalDto[]> {
-    const results = await this.repository
+    const results = await this
       .createQueryBuilder('event_date')
       .select('event_date.id', 'id')
       .addSelect('COUNT(match.id)', 'numMatch')

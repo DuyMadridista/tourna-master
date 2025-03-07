@@ -1,7 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, HttpStatus, HttpException, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, HttpStatus, HttpException, Req } from '@nestjs/common';
 import { UserService } from './user.service';
-
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SuccessResponse } from 'src/helper/OkResponse';
 import { OrganizerUpSertDto } from './dto/organizer-upsert.dto';
 import { ChangePasswordRequestDto } from './dto/change-password-request.dto';
@@ -64,8 +62,6 @@ export class UserController {
     const temp = OrganizerUpSertDto.fromUser(user);
     return SuccessResponse(true, 1, temp, 'Organizer retrieved successfully');
   }
-
-  // @UseGuards(JwtAuthGuard)
   @Get('getMe')
   async getMe(@Req() req: any): Promise<any> {
     try{
@@ -85,8 +81,6 @@ export class UserController {
     const result = await this.userService.findAllOrganizer();
     return SuccessResponse(true, result.length, result, 'Organizer retrieved successfully');
   }
-
-  // @UseGuards(JwtAuthGuard)
   @Put('changePassword')
   async changePassword(
     @Req() req: any,
