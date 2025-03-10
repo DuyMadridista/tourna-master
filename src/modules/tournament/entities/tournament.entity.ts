@@ -9,6 +9,8 @@ import {
     BeforeInsert,
     BeforeUpdate,
     OneToMany,
+    JoinColumn,
+    ManyToOne,
   } from 'typeorm';
   import { User } from '../../user/entities/user.entity';
   import { TournamentStatus } from '../../../enums/tournament-status.enum';
@@ -16,6 +18,7 @@ import {
 import { Team } from 'src/modules/team/entities/team.entity';
 import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
 import { LocalTime, LocalDate, LocalDateTime } from '@js-joda/core';
+import { Category } from 'src/modules/category/entities/category.entity';
   
   @Entity('tournaments')
   export class Tournament {
@@ -25,8 +28,10 @@ import { LocalTime, LocalDate, LocalDateTime } from '@js-joda/core';
     @Column({ length: 255 })
     title: string;
   
-    @Column({ name: 'category_id', nullable: true })
-    categoryId: number;
+    @ManyToOne(() => Category, (category) => category.tournaments)
+    @JoinColumn({ name: 'categoryId' })
+    category: Category;
+  
   
     @CreateDateColumn({ name: 'created_at' })
     createdAt: LocalDateTime;
@@ -47,10 +52,10 @@ import { LocalTime, LocalDate, LocalDateTime } from '@js-joda/core';
     @Column({ name: 'time_between', nullable: true })
     timeBetween: number;
   
-    @Column({ name: 'start_time_default', type: 'time', nullable: true })
+    @Column({ name: 'start_time_default', type: 'time', nullable: true , default: LocalTime.of(0, 0, 0)})
     startTimeDefault: LocalTime;
   
-    @Column({ name: 'end_time_default', type: 'time', nullable: true })
+    @Column({ name: 'end_time_default', type: 'time', nullable: true , default: LocalTime.of(23, 59,59)})
     endTimeDefault: LocalTime;
   
     @Column({
@@ -82,18 +87,8 @@ import { LocalTime, LocalDate, LocalDateTime } from '@js-joda/core';
     @OneToMany(() => EventDate, (eventDate) => eventDate.tournament)
   eventDates: EventDate[];
 
-    @BeforeInsert()
-    setDefaultValues() {
-      this.createdAt = LocalDateTime.now();
-      this.startTimeDefault =  LocalTime.parse('00:00:00');
-      this.endTimeDefault =   LocalTime.parse('23:59:59'); 
-      this.isDeleted = false;
-    }
+
   
-    @BeforeUpdate()
-    updateTimestamp() {
-      this.updatedAt = LocalDateTime.now();
-    }
     constructor(init?: Partial<Tournament>) {
       Object.assign(this, init);
     }

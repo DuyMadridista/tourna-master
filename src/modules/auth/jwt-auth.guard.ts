@@ -1,22 +1,23 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+// auth/jwt-auth.guard.ts
+import { ExecutionContext, Injectable } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { CurrentUserProvider } from 'src/helper/current-user.provider';
 
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
-  constructor(
-    private readonly reflector: Reflector,
-    private readonly currentUserProvider: CurrentUserProvider
-  ) {}
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  constructor(private readonly currentUserProvider: CurrentUserProvider) {
+    super();
+  }
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
+  canActivate(context: ExecutionContext) {
+    return super.canActivate(context);
+  }
 
+  handleRequest(err, user, info, context: ExecutionContext) {
     if (user) {
+      const request = context.switchToHttp().getRequest();
       this.currentUserProvider.setUser(user);
     }
-
-    return !!user; 
+    return user;
   }
 }

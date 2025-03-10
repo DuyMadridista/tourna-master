@@ -8,11 +8,13 @@ import { MatchModule } from '../match/match.module';
 import { EventDate } from './entities/event-date.entity';
 import { Match } from '../match/entities/match.entity';
 import { Tournament } from '../tournament/entities/tournament.entity';
+import { TournamentRepository } from '../tournament/tournament.repository';
+import { MatchRepository } from '../match/match.repository';
 
 @Module({
   imports: [TypeOrmModule.forFeature([EventDate, Match, Tournament])], 
   controllers: [EventDateController],
-  providers: [EventDateService],
+  providers: [EventDateService,TournamentRepository, EventDateRepository, MatchRepository],
   exports: [EventDateService], 
 })
 export class EventDateModule {}

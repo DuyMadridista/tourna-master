@@ -10,7 +10,7 @@ export class UserController {
 
   constructor(private readonly userService: UserService) {}
 
-  @Get()
+  @Get("table")
   async organizerTable(
     @Query('keyword') keyword: string = '',
     @Query('sortType') sortType: 'ASC' | 'DESC' = 'DESC',
@@ -56,12 +56,7 @@ export class UserController {
     return SuccessResponse(true, 1, temp, 'Organizer updated successfully');
   }
 
-  @Get(':id')
-  async getOrganizer(@Param('id') id: number): Promise<any> {
-    const user = await this.userService.getOrganizer(id);
-    const temp = OrganizerUpSertDto.fromUser(user);
-    return SuccessResponse(true, 1, temp, 'Organizer retrieved successfully');
-  }
+
   @Get('getMe')
   async getMe(@Req() req: any): Promise<any> {
     try{
@@ -90,5 +85,11 @@ export class UserController {
     const user = await this.userService.findByEmail(username);
     const updatedUser = await this.userService.changePassword(user, request);
     return SuccessResponse(true, 1, updatedUser, 'Password changed successfully');
+  }
+  @Get(':id')
+  async getOrganizer(@Param('id') id: number): Promise<any> {
+    const user = await this.userService.getOrganizer(id);
+    const temp = OrganizerUpSertDto.fromUser(user);
+    return SuccessResponse(true, 1, temp, 'Organizer retrieved successfully');
   }
 }

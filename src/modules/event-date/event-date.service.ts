@@ -15,12 +15,9 @@ import { Tournament } from '../tournament/entities/tournament.entity';
 export class EventDateService {
   constructor(
     private readonly dataSource: DataSource,
-            @InjectRepository(EventDate)
     private readonly eventDateRepository: EventDateRepository,
-    @InjectRepository(Tournament)
 
     private readonly tournamentRepository: TournamentRepository,
-    @InjectRepository(Match)
 
     private readonly matchRepository: MatchRepository,
   ) {}

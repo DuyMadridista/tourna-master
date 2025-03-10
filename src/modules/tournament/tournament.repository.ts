@@ -104,7 +104,7 @@ export class TournamentRepository extends Repository<Tournament> {
     async findTournamentByCategoryId(categoryId: number): Promise<Tournament[]> {
         return this.repository.find({
             where: {
-                categoryId,
+                category: { categoryId: categoryId },
             },
         });
     }
@@ -132,8 +132,8 @@ export class TournamentRepository extends Repository<Tournament> {
           .select([
             'tournament.id',
             'tournament.title',
-            'category.id',
-            'category.name',
+            'category.categoryId',
+            'category.categoryName',
             'tournament.createdAt',
             'tournament.status',
             'tournament.matchDuration',
@@ -142,8 +142,8 @@ export class TournamentRepository extends Repository<Tournament> {
           .addSelect(
             (subQuery) =>
               subQuery
-                .select('COUNT(DISTINCT ot.tournamentId)', 'total_records')
-                .from('organizer_tournament', 'ot')
+                .select('COUNT(DISTINCT ot.tournament_id)', 'total_records')
+                .from('organizer_tournaments', 'ot')
                 .where('tournament.isDeleted != true'),
             'totalRecords',
           )
@@ -152,7 +152,7 @@ export class TournamentRepository extends Repository<Tournament> {
           .where('tournament.isDeleted = :isDeleted', { isDeleted: false });
     
         if (userId) {
-          queryBuilder.andWhere('organizer.userId = :userId', { userId });
+          queryBuilder.andWhere('organizer.id = :userId', { userId });
         }
     
         if (status) {
@@ -166,34 +166,24 @@ export class TournamentRepository extends Repository<Tournament> {
         }
     
         if (categoryId) {
-          queryBuilder.andWhere('category.id = :categoryId', { categoryId });
+          queryBuilder.andWhere('category.categoryId = :categoryId', { categoryId });
         }
-    
-        const [data, total] = await queryBuilder
-          .orderBy(`tournament.${field}`, sortType)
+        const fieldMapping: Record<string, string> = {
+          category: 'category.categoryName',
+          title: 'tournament.title',
+          createdAt: 'tournament.createdAt',
+          status: 'tournament.status',
+          matchDuration: 'tournament.matchDuration',
+          format: 'tournament.format',
+        };
+        
+        const orderByField = fieldMapping[field] || 'tournament.createdAt';
+        
+        return await queryBuilder
+          .orderBy(orderByField, sortType)
           .skip(page * pageSize)
           .take(pageSize)
           .getManyAndCount();
-    
-        // const tournamentDtos = await Promise.all(
-        //   data.map(async (tournament) => {
-        //     const eventDates = await this.eventDateService.findAllByTournamentId(tournament.id);
-        //     const organizers = await this.userService.findUserByTournamentId(tournament.id);
-        //     return new TournamentDto({
-        //       ...tournament,
-        //       eventDates,
-        //       organizers,
-        //     });
-        //   }),
-        // );
-    
-        return {
-          // data: tournamentDtos,
-          data:null,
-          total,
-          success: true,
-          additionalData: { totalTournament: total },
-        };
       }
     
       async findTournamentToShowGeneral(tournamentId: number): Promise<any> {
@@ -205,22 +195,14 @@ export class TournamentRepository extends Repository<Tournament> {
         if (!tournament) {
           throw new NotFoundException('Tournament not found');
         }
-    
-        // const currentUser = await this.userService.getCurrentUser();
-        // const isAdmin = currentUser.roles.includes('ADMIN');
-        // const isOrganizer = await this.userService.isOrganizerOfTournament(currentUser.username, tournamentId);
-    
-        // if (!isAdmin && !isOrganizer) {
-        //   throw new UnauthorizedException("You don't have permission to view this tournament");
-        // }
-    
-        // const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
-        // const organizers = await this.userService.findOrganizerInGeneral(tournamentId);
-    
         const tournamentGeneralDto = new TournamentGeneralDto({
           id: tournament.id,
           title: tournament.title,
           description: tournament.description,
+          category: {
+            id: tournament.category.categoryId,
+            categoryName: tournament.category.categoryName,
+          },
           status: tournament.status,
           organizers: null,
           eventDates: null

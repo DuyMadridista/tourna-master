@@ -9,6 +9,7 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { TournamentService } from './tournament.service';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
@@ -16,8 +17,10 @@ import { UpdateTournamentDto } from './dto/update-tournament.dto';
 import { LeaderBoardDetailDto } from '../match/dto/LeaderBoardDetailDto';
 import { TournamentStatus } from '../../enums/tournament-status.enum';
 import { SuccessResponse } from 'src/helper/OkResponse';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('tournament')
+@UseGuards(JwtAuthGuard)
 export class TournamentController {
   constructor(private readonly tournamentService: TournamentService) {}
 
@@ -31,7 +34,7 @@ export class TournamentController {
     @Query('keyword') search: string = '',
     @Query('filterCategory') categoryId?: number,
   ) {
-    const data = await this.tournamentService.getAll(
+     return await this.tournamentService.getAll(
       page - 1,
       pageSize,
       sortField,
@@ -40,19 +43,18 @@ export class TournamentController {
       search.trim(),
       categoryId,
     );
-    return SuccessResponse(true, data.length, data, 'Tournaments retrieved successfully');
+    // return SuccessResponse(true, data.length, data, 'Tournaments retrieved successfully');
   }
 
   @Get(':id')
   async findOne(@Param('id') id: number) {
-    const data =  await this.tournamentService.getTournamentToShowGeneral(id);
-    return SuccessResponse(true, 1, data, 'Tournament retrieved successfully');
+    return await this.tournamentService.getTournamentToShowGeneral(id);
   }
 
   @Post()
-  create(@Body() createTournamentDto: CreateTournamentDto) {
+  async create(@Body() createTournamentDto: CreateTournamentDto) {
     const { title, categoryId, eventDates, description } = createTournamentDto;
-    const data = this.tournamentService.createTournament(
+    const data =await this.tournamentService.createTournament(
       title,
       categoryId,
       eventDates,
@@ -62,18 +64,18 @@ export class TournamentController {
   }
 
   @Put(':id/detail')
-  update(
+  async update(
     @Param('id') id: number,
     @Body() updateTournamentDto: UpdateTournamentDto,
   ) {
-    const data = this.tournamentService.updateTournament(id, updateTournamentDto);
+    const data =await this.tournamentService.updateTournament(id, updateTournamentDto);
     return SuccessResponse(true, 1, data, 'Tournament updated successfully');
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: number) {
-    const data = this.tournamentService.deleteTournament(id);
+  async remove(@Param('id') id: number) {
+    const data =await this.tournamentService.deleteTournament(id);
     return SuccessResponse(true, 1, data, 'Tournament deleted successfully');
   }
 
@@ -84,8 +86,8 @@ export class TournamentController {
   }
 
   @Put(':tournamentId/discard')
-  discardTournament(@Param('tournamentId') tournamentId: number) {
-    this.tournamentService.discardTournament(tournamentId);
+  async discardTournament(@Param('tournamentId') tournamentId: number) {
+    await this.tournamentService.discardTournament(tournamentId);
     return SuccessResponse(true, 1, null, 'Tournament discarded successfully');
   }
 }

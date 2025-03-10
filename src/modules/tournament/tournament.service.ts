@@ -19,21 +19,19 @@ import { TournamentRepository } from './tournament.repository';
 import { EventDate } from '../event-date/entities/event-date.entity';
 import { LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
 import { CurrentUserProvider } from 'src/helper/current-user.provider';
+import { TournamentDto } from './dto/tournament.dto';
 // import { OrganizerTournamentService } from '../organizer-tournament/organizer-tournament.service';
 
 @Injectable()
 export class TournamentService {
   private readonly INSERT_INTO_TOURNAMENT_ORGANIZER_TABLE = 
-    'INSERT INTO organizer_tournament(user_id, tournament_id) VALUES (:userId, :tournamentId)';
+    'INSERT INTO organizer_tournaments(user_id, tournament_id) VALUES (?, ?)';
 
   constructor(
-    @InjectRepository(Tournament)
     private tournamentRepository: TournamentRepository,
     private userService: UserService,
     @Inject(forwardRef(() => TeamService))
     private teamService: TeamService,
-    @Inject(forwardRef(() => EventDateService))
-
     private eventDateService: EventDateService,
     @Inject(forwardRef(() => CategoryService))
 
@@ -48,48 +46,61 @@ export class TournamentService {
     private readonly currentUserProvider: CurrentUserProvider
   ) {}
 
-  async getAll(
-    page: number,
-    pageSize: number,
-    field: string,
-    sortType: 'ASC' | 'DESC',
-    status: TournamentStatus,
-    search: string,
-    categoryId: number,
-  ): Promise<any> {
-    search = search.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    const user = this.currentUserProvider.getUser();
-    const isAdmin = user.role === UserRole.ADMIN;
-    const isOrganizer = user.role === UserRole.ORGANIZER;
+  // tournament.service.ts
+public async getAll(
+  page: number,
+  pageSize: number,
+  field: string,
+  sortType: 'ASC' | 'DESC',
+  status: TournamentStatus,
+  search: string,
+  categoryId: number,
+): Promise<any> {
+  search = search.replace(/%/g, '\\%').replace(/_/g, '\\_');
+  const user = this.currentUserProvider.getUser();
+  const isAdmin = user.role === UserRole.ADMIN;
+  const isOrganizer = user.role === UserRole.ORGANIZER;
 
-    if (isAdmin) {
-      return await this.tournamentRepository.findAllByUserId(
-        null,
-        page,
-        pageSize,
-        sortType,
-        field,
-        status, 
-        search,
-        categoryId
-      );
-    } else if (isOrganizer) {
-      return await this.tournamentRepository.findAllByUserId(
-        user.id,
-        page,
-        pageSize,
-        sortType,
-        field,
-        status,
-        search,
-        categoryId
-      );
-    }
-    
-    return null;
+  let tournaments: Tournament[] = [];
+  let total = 0;
+
+  if (isAdmin || isOrganizer) {
+    const [data, count] = await this.tournamentRepository.findAllByUserId(
+      isAdmin ? null : user.id,
+      page,
+      pageSize,
+      sortType,
+      field,
+      status,
+      search,
+      categoryId
+    );
+    tournaments = data;
+    total = count;
   }
 
-  async deleteTournament(id: number): Promise<Tournament> {
+  const tournamentDtos = await Promise.all(
+    tournaments.map(async (tournament) => {
+      const eventDates = await this.eventDateService.findAllByTournamentId(tournament.id);
+      const organizers = await this.userService.findUserByTournamentId(tournament.id);
+      return new TournamentDto({
+        ...tournament,
+        eventDates,
+        organizers,
+      });
+    })
+  );
+
+  return {
+    data: tournamentDtos,
+    total,
+    success: true,
+    additionalData: { totalTournament: total },
+  };
+}
+
+
+  public async deleteTournament(id: number): Promise<Tournament> {
     const user = this.currentUserProvider.getUser();
     const tournament = await this.tournamentRepository.findTournamentByIdAndNotDeleted(id);
     if (!tournament) {
@@ -109,8 +120,12 @@ export class TournamentService {
     return await this.tournamentRepository.save(tournament);
   }
 
-  async getTournamentToShowGeneral(id: number): Promise<SuccessResponseDto<Tournament>> {
+  public async getTournamentToShowGeneral(id: number): Promise<SuccessResponseDto<Tournament>> {
     const response = await this.tournamentRepository.findTournamentToShowGeneral(id);
+    const eventDates = await this.eventDateService.findAllByTournamentId(id);
+    const organizers = await this.userService.findOrganizerInGeneral(id);
+    response.data.eventDates = eventDates;
+    response.data.organizers = organizers;
     response.additionalData = {
       matchOfEventDates: await this.eventDateService.findAllEventDatesAndCountMatch(id),
       tournamentPlan: await this.getPlanByTournamentId(id)
@@ -118,7 +133,7 @@ export class TournamentService {
     return response;
   }
 
-  async createTournament(
+  public async createTournament(
     title: string,
     categoryId: number,
     eventDates: LocalDate[],  
@@ -128,26 +143,29 @@ export class TournamentService {
       throw new BadRequestException('Event Date must not be null');
     }
     const user = this.currentUserProvider.getUser();
-    for (const date of eventDates) {
-      if (date < LocalDate.now()) {
+    for (const rawDate of eventDates) {
+      const date = LocalDate.parse(rawDate.toString()); 
+      if (date.isBefore(LocalDate.now())) {
         throw new BadRequestException('Cannot add a date in the past.');
       }
     }
+    
 
     const category = await this.categoryService.findCategoryById(categoryId);
     if (!category || category.isDeleted) {
       throw new NotFoundException(`category not found with id: ${categoryId}`);
     }
 
-    const tournament = await this.tournamentRepository.save( new Tournament( {
+    const tournament = await this.tournamentRepository.save({
       title,
-      categoryId,
+      category,
       description: desc,
       format: TournamentFormat.ROUND_ROBIN,
       status: TournamentStatus.NEED_INFORMATION,
       matchDuration: 0,
-      timeBetween: null
-    }));
+      timeBetween: null,
+    });
+    
 
     if (eventDates) {
       const events = Array.from(eventDates).map(date => {
@@ -158,6 +176,7 @@ export class TournamentService {
         event.endTime = null;
         return event;
       });
+      console.log('typeof saveAll:', typeof this.eventDateService.saveAll);
       await this.eventDateService.saveAll(events);
     }
 
@@ -169,14 +188,14 @@ export class TournamentService {
     return tournament;
   }
 
-  private async editOrganizersInGeneral(
+   public async editOrganizersInGeneral(
     UpdateTournamentDto: UpdateTournamentDto,
     tournamentId: number
   ): Promise<void> {
     // if (UpdateTournamentDto.organizers) {
     //   await this.organizerTournamentService.deleteAllByTournamentId(tournamentId);
     //   const organizers = await Promise.all(
-    //     UpdateTournamentDto.organizers.map(async userId => ({
+    //     UpdateTournamentDto.organizers.map(public async userId => ({
     //       userId: userId,
     //       tournamentId
     //     }))
@@ -185,7 +204,7 @@ export class TournamentService {
     // }
   }
 
-  private async editEventDatesInGeneral(
+   public async editEventDatesInGeneral(
     UpdateTournamentDto: UpdateTournamentDto,
     tournamentId: number,
     tournament: Tournament
@@ -228,7 +247,7 @@ export class TournamentService {
     await this.eventDateService.saveAll(newEventDates);
   }
 
-  async updateTournament(
+  public async updateTournament(
     tournamentId: number,
     UpdateTournamentDto: UpdateTournamentDto
   ): Promise<TournamentGeneralDto> {
@@ -257,24 +276,24 @@ export class TournamentService {
     if (UpdateTournamentDto.categoryId) {
       const category = await this.categoryService.findCategoryById(UpdateTournamentDto.categoryId);
       if (!category) throw new NotFoundException('Category not found');
-      tournament.categoryId = category.categoryId;
+      tournament.category = category;
     }
 
-    tournament.updatedAt = LocalDateTime.now();
+    // tournament.updatedAt = LocalDateTime.now();
     await this.tournamentRepository.save(tournament);
 
     return {
       id: tournament.id,
       title: tournament.title,
       description: tournament.description,
-      category: await this.categoryService.findCategoryDtoById(tournament.categoryId),
+      category: await this.categoryService.findCategoryDtoById(tournament.category.categoryId),
       status: tournament.status,
       eventDates: await this.eventDateService.findAllByTournamentId(tournamentId),
       organizers: await this.userService.findOrganizerInGeneral(tournamentId)
     };
   }
 
-  async getDetailLeaderBoard(tournamentId: number): Promise<LeaderBoardDetailDto> {
+  public async getDetailLeaderBoard(tournamentId: number): Promise<LeaderBoardDetailDto> {
     const tournament = await this.tournamentRepository.findTournamentByIdAndNotDeleted(tournamentId);
     if (!tournament) {
       throw new NotFoundException('Tournament not found');
@@ -289,7 +308,7 @@ export class TournamentService {
     };
   }
 
-  async discardTournament(tournamentId: number): Promise<void> {
+  public async discardTournament(tournamentId: number): Promise<void> {
     const tournament = await this.tournamentRepository.findTournamentByIdAndNotDeleted(tournamentId);
     if (!tournament) {
       throw new NotFoundException('Tournament not found');
@@ -303,14 +322,14 @@ export class TournamentService {
     await this.tournamentRepository.save(tournament);
   }
 
-  async getPlanByTournamentId(tournamentId: number): Promise<any> {
+  public async getPlanByTournamentId(tournamentId: number): Promise<any> {
     const plan = await this.tournamentRepository.getPlanByTournamentId(tournamentId);
     if (!plan) {
       throw new NotFoundException('Tournament not found');
     }
     return plan;
   }
-  async findTournamentByCategoryId(categoryId: number): Promise<Tournament[]> {
+  public async findTournamentByCategoryId(categoryId: number): Promise<Tournament[]> {
     return this.tournamentRepository.findTournamentByCategoryId(categoryId);
   }
 }

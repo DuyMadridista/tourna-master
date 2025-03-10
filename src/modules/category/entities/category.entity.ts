@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
 import { IsNotEmpty, IsBoolean, Length, Matches } from 'class-validator';
 import { LocalTime, LocalDate, LocalDateTime } from '@js-joda/core';
+import { Tournament } from 'src/modules/tournament/entities/tournament.entity';
 
 @Entity('category')
 export class Category {
@@ -27,6 +28,9 @@ export class Category {
   @Column({ type: 'datetime', nullable: true })
   deletedAt: LocalDateTime | null;
 
+  @OneToMany(() => Tournament, (tournament) => tournament.category)
+  tournaments: Tournament[];
+  
   setCategoryName(categoryName: string) {
     this.categoryName = categoryName?.trim() || null;
   }

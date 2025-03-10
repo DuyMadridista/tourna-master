@@ -48,7 +48,7 @@ export class CategoryController {
   async findAllCategories() {
     const categories = await this.categoryService.findAllCategories();
     return  SuccessResponse(true, categories.length, categories);
-  }
+  } 
 
   @Get('countTournament/:id')
   async countTournamentByCategory(@Param('id') categoryId: number) {

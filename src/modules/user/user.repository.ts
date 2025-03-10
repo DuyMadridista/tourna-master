@@ -19,7 +19,7 @@ export class UserRepository extends Repository<User> {
 
   async totalOrganizer(keyword: string): Promise<number> {
     const queryBuilder = this.createQueryBuilder('u')
-      .leftJoin('organizer_tournament', 'ot', 'u.id = ot.userId')
+      .leftJoin('organizer_tournaments', 'ot', 'u.id = ot.user_id')
       .where('u.role = :role', { role: 'ORGANIZER' })
       .andWhere('u.isDeleted = :isDeleted', { isDeleted: false })
       .andWhere(
@@ -47,8 +47,8 @@ export class UserRepository extends Repository<User> {
         'CONCAT(u.firstName, \' \', u.lastName) as fullName',
         'u.email as email',
       ])
-      .innerJoin('organizer_tournament', 'ot', 'u.id = ot.userId')
-      .where('ot.tournamentId = :tournamentId', { tournamentId })
+      .innerJoin('organizer_tournaments', 'ot', 'u.id = ot.user_id')
+      .where('ot.tournament_id = :tournamentId', { tournamentId })
       .andWhere('u.isDeleted = :isDeleted', { isDeleted: false });
 
     const results = await queryBuilder.getRawMany();
@@ -64,8 +64,8 @@ export class UserRepository extends Repository<User> {
         'u.email',
         'u.role',
       ])
-      .innerJoin('organizer_tournament', 'ot', 'u.id = ot.userId')
-      .where('ot.tournamentId = :tournamentId', { tournamentId })
+      .innerJoin('organizer_tournaments', 'ot', 'u.id = ot.user_id')
+      .where('ot.tournament_id = :tournamentId', { tournamentId })
       .andWhere('u.isDeleted = :isDeleted', { isDeleted: false });
 
     const users = await queryBuilder.getMany();
@@ -80,9 +80,9 @@ export class UserRepository extends Repository<User> {
 
   async isOrganizerOfTournament(userId: number, tournamentId: number): Promise<User | undefined> {
     return this.createQueryBuilder('u')
-      .innerJoin('organizer_tournament', 'ot', 'u.id = ot.userId')
-      .where('ot.tournamentId = :tournamentId', { tournamentId })
-      .andWhere('ot.userId = :userId', { userId })
+      .innerJoin('organizer_tournaments', 'ot', 'u.id = ot.user_id')
+      .where('ot.tournament_id = :tournamentId', { tournamentId })
+      .andWhere('ot.user_id = :userId', { userId })
       .andWhere('u.isDeleted = :isDeleted', { isDeleted: false })
       .getOne();
   }
@@ -106,7 +106,7 @@ export class UserRepository extends Repository<User> {
       FROM 
           users u
       LEFT JOIN 
-          organizer_tournament ot ON u.id = ot.user_id
+          organizer_tournaments ot ON u.id = ot.user_id
       WHERE 
           u.role = 'ORGANIZER'
           AND u.is_deleted = false

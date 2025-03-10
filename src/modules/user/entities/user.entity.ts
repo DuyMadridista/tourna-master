@@ -35,8 +35,8 @@ import { Tournament } from 'src/modules/tournament/entities/tournament.entity';
     @Length(1, 255, { message: 'Last name must not be empty' })
     lastName: string;
   
-    @Column({ name: 'phone_number', length: 11, nullable: true })
-    @Length(10, 11, { message: 'Phone number must be between 10 and 11 characters' })
+    @Column({ name: 'phone_number', length: 25, nullable: true })
+    @Length(1, 25, { message: 'Phone number must be between 10 and 11 characters' })
     phoneNumber: string;
   
     @CreateDateColumn({ name: 'created_at' })

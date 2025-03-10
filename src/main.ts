@@ -1,12 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { log } from 'util';
 async function bootstrap() {
   console.log(process.env.PORT);
   
   const app = await NestFactory.create(AppModule);
-
+  app.enableCors();
    const config = new DocumentBuilder()
    .setTitle('API Documentation')
    .setDescription('The API description for your application')

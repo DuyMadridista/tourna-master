@@ -86,7 +86,7 @@ export class UserService {
       throw new BadRequestException('Email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(this.ORGANIZER_DEFAULT_PASSWORD, 10);
+    const hashedPassword = await bcrypt.hash(organizer.password ?? this.ORGANIZER_DEFAULT_PASSWORD, 10);
     const user = this.userRepository.create({
       email: organizer.email,
       password: hashedPassword,
