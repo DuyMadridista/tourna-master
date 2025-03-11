@@ -49,7 +49,7 @@ export class PlayerController {
     const newPlayer = await this.playerService.createPlayer(
       teamId,
       playerDto.playerName,
-      playerDto.dateOfBirth.toUTCString(),
+      playerDto.dateOfBirth.toString(),
       playerDto.phone,
     );
     return SuccessResponse(true, 1, newPlayer, 'Player created successfully');

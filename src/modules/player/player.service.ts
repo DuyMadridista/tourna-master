@@ -9,17 +9,15 @@ import { Team } from '../team/entities/team.entity';
 @Injectable()
 export class PlayerService {
     constructor(
-        @InjectRepository(Player)
         private readonly playerRepository: PlayerRepository,
-        @InjectRepository(Team)
         private readonly teamRepository: TeamRepository
     ) {}
 
     private async checkTeamId(teamId: number): Promise<void> {
         const teamIds = await this.teamRepository.getAllTeamID();
-        if (!teamIds.includes(teamId)) {
+        if (!teamIds.includes(Number(teamId))) {
             throw new NotFoundException('Team not found');
-        }
+        }        
     }
 
     private async checkTeamHasPlayer(teamId: number, playerId: number): Promise<void> {
@@ -56,7 +54,7 @@ export class PlayerService {
         }
 
         const newPlayer = this.playerRepository.create({
-            
+            team: { teamId } as Team,
             playerName: playerName.trim(),
             dateOfBirth: dob,
             phone: phoneNumber,

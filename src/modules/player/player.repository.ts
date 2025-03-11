@@ -11,7 +11,7 @@ export class PlayerRepository extends Repository<Player> {
     async getAllPlayersByTeamId(teamId: number): Promise<Player[]> {
         return this
             .createQueryBuilder('player')
-            .where('player.teamId = :teamId', { teamId })
+            .where('player.team_id = :teamId', { teamId })
             .orderBy('player.createdAt', 'DESC')
             .getMany();
     }
@@ -19,7 +19,7 @@ export class PlayerRepository extends Repository<Player> {
     async getTotalPlayersByTeamId(teamId: number): Promise<number> {
         return this
             .createQueryBuilder('player')
-            .where('player.teamId = :teamId', { teamId })
+            .where('player.team_id = :teamId', { teamId })
             .getCount();
     }
 
@@ -27,7 +27,7 @@ export class PlayerRepository extends Repository<Player> {
         return this
             .createQueryBuilder('player')
             .where('player.playerId = :playerId', { playerId })
-            .andWhere('player.teamId = :teamId', { teamId })
+            .andWhere('player.team_id = :teamId', { teamId })
             .getOne();
     }
 
@@ -35,7 +35,7 @@ export class PlayerRepository extends Repository<Player> {
         await this
             .createQueryBuilder('player')
             .delete()
-            .where(`player.teamId IN (
+            .where(`player.team_id IN (
                 SELECT teamId FROM Team WHERE tournamentId = :tournamentId
             )`, { tournamentId })
             .execute();

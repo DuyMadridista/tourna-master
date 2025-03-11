@@ -52,11 +52,22 @@ import { Category } from 'src/modules/category/entities/category.entity';
     @Column({ name: 'time_between', nullable: true })
     timeBetween: number;
   
-    @Column({ name: 'start_time_default', type: 'time', nullable: true , default: LocalTime.of(0, 0, 0)})
-    startTimeDefault: LocalTime;
-  
-    @Column({ name: 'end_time_default', type: 'time', nullable: true , default: LocalTime.of(23, 59,59)})
-    endTimeDefault: LocalTime;
+    @Column({
+      name: 'start_time_default',
+      type: 'time',
+      nullable: true,
+      default: () => "'00:00:00'",
+    })
+    startTimeDefault: string;
+    
+    @Column({
+      name: 'end_time_default',
+      type: 'time',
+      nullable: true,
+      default: () => "'23:59:59'",
+    })
+    endTimeDefault: string;
+    
   
     @Column({
       type: 'enum',

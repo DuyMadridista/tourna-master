@@ -7,13 +7,14 @@ import { TournamentModule } from '../tournament/tournament.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TeamModule } from '../team/team.module';
 import { TeamRepository } from '../team/team.repository';
+import { PlayerRepository } from './player.repository';
 
 @Module({
     imports: [
       TypeOrmModule.forFeature([Player, Team]), 
     ], 
   controllers: [PlayerController],
-  providers: [PlayerService],
+  providers: [PlayerService,PlayerRepository, TeamRepository],
   exports: [PlayerService]
 })
 export class PlayerModule {}

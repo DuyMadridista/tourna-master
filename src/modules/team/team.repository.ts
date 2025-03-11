@@ -17,7 +17,7 @@ export class TeamRepository extends Repository<Team> {
       .select('team.teamId', 'teamId')
       .addSelect('team.teamName', 'teamName')
       .addSelect('COUNT(player.playerId)', 'playerCount')
-      .leftJoin('player', 'player', 'team.teamId = player.teamId')
+      .leftJoin('player', 'player', 'team.teamId = player.team_id')
       .where('team.tournamentId = :tournamentId', { tournamentId })
       .groupBy('team.teamId, team.teamName')
       .orderBy('team.createdAt', 'DESC')

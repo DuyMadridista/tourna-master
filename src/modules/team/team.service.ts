@@ -25,25 +25,25 @@ export class TeamService {
     size: number,
   ): Promise<TeamPlayerDto[]> {
     const skip = page * size;
-    const teams = await this.teamRepository.query(
-      `
-      SELECT team.teamId AS "teamId",
-             team.teamName AS "teamName",
-             COALESCE(COUNT(player.playerId), 0) AS "playerCount"
-      FROM team
-      LEFT JOIN player ON team.teamId = player.teamId
-      WHERE team.tournamentId = $1
-      GROUP BY team.teamId, team.teamName
-      ORDER BY team.createdAt DESC
-      LIMIT $2 OFFSET $3
-    `,
-      [tournamentId, size, skip],
-    );
-
-    return teams.map(
-      (team) =>
-        new TeamPlayerDto(team.teamId, team.teamName, Number(team.playerCount)),
-    );
+    const teams = await this.teamRepository
+    .createQueryBuilder('team')
+    .leftJoin('team.players', 'player')
+    .select('team.id', 'teamId')
+    .addSelect('team.name', 'teamName')
+    .addSelect('COUNT(player.playerId)', 'playerCount')
+    .where('team.tournament_id = :tournamentId', { tournamentId })
+    .groupBy('team.id')
+    .addGroupBy('team.teamName')
+    .orderBy('team.createdAt', 'DESC')
+    .limit(size)
+    .offset(skip)
+    .getRawMany();
+  
+  return teams.map(
+    (team) =>
+      new TeamPlayerDto(team.teamId, team.teamName, Number(team.playerCount)),
+  );
+  
   }
 
   async hasExistTeamName(tournamentId: number, teamName: string): Promise<boolean> {

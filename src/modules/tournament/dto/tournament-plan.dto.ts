@@ -6,13 +6,13 @@ export class TournamentPlanDto {
         description: 'Default start time for tournament matches',
         example: '09:00:00'
     })
-    startTimeDefault: LocalTime; // LocalTime equivalent in TypeScript
+    startTimeDefault: string; // LocalTime equivalent in TypeScript
 
     @ApiProperty({
         description: 'Default end time for tournament matches',
         example: '17:00:00'
     })
-    endTimeDefault: LocalTime; // LocalTime equivalent in TypeScript
+    endTimeDefault: string; // LocalTime equivalent in TypeScript
 
     @ApiProperty({
         description: 'Time between matches in minutes',
