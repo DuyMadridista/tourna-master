@@ -32,11 +32,26 @@ import { LocalTime } from '@js-joda/core';
     teamTwoResult: number;
   
     @Column({ name: 'start_time', type: 'time', nullable: true })
-    startTime: LocalTime;
-  
+    private _startTime: string;
+
+    get startTime(): LocalTime | null {
+      return this._startTime ? LocalTime.parse(this._startTime) : null;
+    }
+
+    set startTime(value: LocalTime | null) {
+      this._startTime = value ? value.toString() : null;
+    }
+
     @Column({ name: 'end_time', type: 'time', nullable: true })
-    endTime: LocalTime;
-  
+    private _endTime: string;
+
+    get endTime(): LocalTime | null {
+      return this._endTime ? LocalTime.parse(this._endTime) : null;
+    }
+
+    set endTime(value: LocalTime | null) {
+      this._endTime = value ? value.toString() : null;
+    }
     @Column({ name: 'duration', type: 'int', nullable: true })
     matchDuration: number;
   

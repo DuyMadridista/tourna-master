@@ -3,15 +3,15 @@ import { TeamService } from 'src/modules/team/team.service';
 import { Match } from 'src/modules/match/entities/match.entity';
 import { MatchDto } from 'src/modules/match/dto/MatchDto';
 import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
-import { GenerationDto } from 'src/modules/match/dto/GenerationDto';
+import { GenerationDto } from 'src/modules/generate/dto/GenerationDto';
 import { TypeMatch } from '../enums/match-type.enum';
 import { CommonHelper } from './common-helper';
-import { LocalDateTime, LocalTime } from '@js-joda/core';
+import { LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
 @Injectable()
 export class MatchUtils {
   constructor(private readonly teamService: TeamService) {}
 
-  numberMatchTimes(schedule: Map<EventDate, Array<Array<string>>>): number {
+  numberMatchTimes(schedule: Map<EventDate, Array<Array<LocalTime>>>): number {
     return Array.from(schedule.values()).reduce((acc, times) => acc + times.length, 0);
   }
 
@@ -58,8 +58,8 @@ export class MatchUtils {
     for (const eventDate of eventDates) {
       let startMatch = eventDate.startTime;
       let endMatch = startMatch.plusMinutes(duration);
-      const thisEventDate = LocalDateTime.of(eventDate.date, endDate);
-      let checkDateTime = LocalDateTime.of(eventDate.date, startMatch);
+      const thisEventDate = LocalDateTime.of(LocalDate.parse(eventDate.date.toString()), endDate);
+      let checkDateTime = LocalDateTime.of(LocalDate.parse(eventDate.date.toString()), startMatch);
       let countTime = 0;
   
       while (

@@ -35,8 +35,8 @@ export class PlayerRepository extends Repository<Player> {
         await this
             .createQueryBuilder('player')
             .delete()
-            .where(`player.team_id IN (
-                SELECT teamId FROM Team WHERE tournamentId = :tournamentId
+            .where(`players.team_id IN (
+                SELECT id FROM teams WHERE tournament_id = :tournamentId
             )`, { tournamentId })
             .execute();
     }

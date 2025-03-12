@@ -38,7 +38,7 @@ export class EventDateRepository extends Repository<EventDate> {
       .createQueryBuilder()
       .delete()
       .from(EventDate)
-      .where('tournament_id = :tournamentId', { tournamentId })
+      .where('tournamentId = :tournamentId', { tournamentId })
       .execute();
   }
 

@@ -42,7 +42,7 @@ export class MatchRepository extends Repository<Match> {
     await this.createQueryBuilder('match')
       .delete()
       .from(Match)
-      .where('match.eventDateId IN (SELECT ed.id FROM EventDate ed WHERE ed.tournamentId = :tournamentId)', {
+      .where('matches.event_date_id IN (SELECT ed.id FROM event_dates ed WHERE ed.tournamentId = :tournamentId)', {
         tournamentId,
       })
       .execute();
@@ -50,10 +50,15 @@ export class MatchRepository extends Repository<Match> {
 
   async getAllByEventDateId(eventDateId: number): Promise<Match[]> {
     return this.createQueryBuilder('match')
-      .where('match.eventDateId = :eventDateId', { eventDateId })
-      .orderBy('match.startTime', 'ASC')
+      .leftJoinAndSelect('match.teamOne', 'teamOne')
+      .leftJoinAndSelect('match.teamTwo', 'teamTwo')
+      .leftJoinAndSelect('match.eventDate', 'eventDate')
+      .where('match.event_date_id = :eventDateId', { eventDateId })
+      .orderBy('match.start_time', 'ASC')
       .getMany();
   }
+  
+  
 
   async getAllResult(tournamentId: number): Promise<any[]> {
     return this.createQueryBuilder('match')
@@ -103,8 +108,8 @@ export class MatchRepository extends Repository<Match> {
     return this.createQueryBuilder('match')
       .innerJoin('match.eventDate', 'eventDate')
       .where('eventDate.id = :eventDateId', { eventDateId })
-      .andWhere('match.startTime > :startTime', { startTime })
-      .orderBy('match.startTime', 'ASC')
+      .andWhere('match.start_time > :startTime', { startTime })
+      .orderBy('match.start_time', 'ASC')
       .getMany();
   }
 
@@ -138,8 +143,8 @@ export class MatchRepository extends Repository<Match> {
         'match.teamOneResult',
         'match.teamTwoResult',
         'eventDate.date',
-        'match.startTime',
-        'match.endTime',
+        'match.start_time',
+        'match.end_time',
       ])
       .innerJoin('match.teamOne', 'team1')
       .innerJoin('match.teamTwo', 'team2')
@@ -147,7 +152,7 @@ export class MatchRepository extends Repository<Match> {
       .where('team1.tournamentId = :tournamentId', { tournamentId })
       .groupBy('match.id')
       .orderBy('eventDate.date', 'DESC')
-      .addOrderBy('match.startTime', 'DESC')
+      .addOrderBy('match.start_time', 'DESC')
       .getRawMany();
   }
 
@@ -167,7 +172,7 @@ export class MatchRepository extends Repository<Match> {
             .where('tournament2.id = :tournamentId')
             .andWhere('match1.id != match2.id')
             .andWhere(
-              '(match1.teamOneId = match2.teamOneId AND match1.teamTwoId = match2.teamTwoId) OR (match1.teamOneId = match2.teamTwoId AND match1.teamTwoId = match2.teamOneId)',
+              '(match1.team_one_id = match2.team_one_id AND match1.team_two_id = match2.team_two_id) OR (match1.team_one_id = match2.team_two_id AND match1.team_two_id = match2.team_one_id)',
             )
             .getQuery()})`,
       )

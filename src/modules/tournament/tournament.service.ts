@@ -114,7 +114,7 @@ public async getAll(
       this.matchService.deleteAllByTournamentId(tournament.id),
       this.playerService.deleteAllPlayerByTournamentId(tournament.id),
       this.teamService.deleteTeamByTournamentId(id),
-      this.eventDateService.deleteAllByTournamentId(tournament.id),
+      this.eventDateService.deleteAllByTournamentId(tournament.id)
     ]);
 
     return await this.tournamentRepository.save(tournament);
@@ -172,8 +172,8 @@ public async getAll(
         const event = new EventDate();
         event.tournament = tournament;
         event.date = date;
-        event.startTime = null;
-        event.endTime = null;
+        event.startTime =  LocalTime.of(0, 0, 0);
+        event.endTime = LocalTime.of(23, 59, 59);
         return event;
       });
       console.log('typeof saveAll:', typeof this.eventDateService.saveAll);
@@ -220,7 +220,7 @@ public async getAll(
       for (const eventDate of eventDates) {
         const date = eventDate.date;
         if (!UpdateTournamentDto.eventDates.includes(date)) {
-          if (date <= LocalDate.now()) {  
+          if (date.isBefore( LocalDate.now())) {  
             throw new BadRequestException('Cannot delete event date that is today or before');
           }
           if (await this.matchService.isHaveMatchInDate(eventDate.id)) {
@@ -231,10 +231,9 @@ public async getAll(
       }
     }
 
-    if (UpdateTournamentDto.eventDates.some(date => date < LocalDate.now())) {
+    if (UpdateTournamentDto.eventDates.some(date => LocalDate.parse(date.toString()).isBefore(LocalDate.now()))) {
       throw new BadRequestException('Cannot add event date that is before today');
-    }
-
+    }    
     const newEventDates: EventDate[] = UpdateTournamentDto.eventDates.map(date => {
       const event = new EventDate();
       event.tournament = tournament; 
@@ -286,7 +285,7 @@ public async getAll(
       id: tournament.id,
       title: tournament.title,
       description: tournament.description,
-      category: await this.categoryService.findCategoryDtoById(tournament.category.categoryId),
+      category: await this.categoryService.findCategoryDtoById(tournament.category?.categoryId),
       status: tournament.status,
       eventDates: await this.eventDateService.findAllByTournamentId(tournamentId),
       organizers: await this.userService.findOrganizerInGeneral(tournamentId)
@@ -331,5 +330,11 @@ public async getAll(
   }
   public async findTournamentByCategoryId(categoryId: number): Promise<Tournament[]> {
     return this.tournamentRepository.findTournamentByCategoryId(categoryId);
+  }
+  public async findTournamentById(tournamentId: number): Promise<Tournament> {
+    return this.tournamentRepository.findActiveTournamentById(tournamentId);
+  }
+  public async save(tournament: Tournament): Promise<Tournament> {
+    return this.tournamentRepository.save(tournament);
   }
 }

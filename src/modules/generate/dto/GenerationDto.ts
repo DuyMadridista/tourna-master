@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
-import { MatchDto } from '../dto/MatchDto';
+import { MatchDto } from '../../match/dto/MatchDto';
 import { LocalTime, LocalDate } from '@js-joda/core';
 
 export class GenerationDto {

@@ -14,6 +14,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CategoryModule } from './modules/category/category.module';
 import typeormConfig from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
+import { GenerationModule } from './modules/generate/generation.module';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { AuthModule } from './modules/auth/auth.module';
       useFactory: (configService: ConfigService) => ({
         ...configService.get('typeorm'),
       }),
-    }),AuthModule,UserModule, TournamentModule, TeamModule, PlayerModule, MatchModule, EventDateModule, CategoryModule],
+    }),AuthModule,UserModule, TournamentModule, TeamModule, PlayerModule, MatchModule, EventDateModule, CategoryModule, GenerationModule],
   controllers: [AppController],
   providers: [ {
     provide: APP_FILTER,

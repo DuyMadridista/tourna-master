@@ -7,7 +7,7 @@ import { EventDateService } from '../event-date/event-date.service';
 import { MatchUtils } from 'src/helper/match.utils';
 import { EventDate } from '../event-date/entities/event-date.entity';
 import { Team } from '../team/entities/team.entity';
-import {  GenerationDto } from '../match/dto/GenerationDto';
+import {  GenerationDto } from '../generate/dto/GenerationDto';
 import { MatchDto } from './dto/MatchDto';
 import { TypeMatch } from 'src/enums/match-type.enum';
 import { DateTime } from 'luxon';
@@ -20,19 +20,17 @@ import { MatchOfLeaderBoardDto } from './dto/MatchOfLeaderBoardDto';
 import { LeaderBoardDto } from './dto/LeaderBoardDto';
 import { TournamentRepository } from '../tournament/tournament.repository';
 import { TeamRepository } from '../team/team.repository';
-import { ChronoUnit, LocalDate, LocalTime } from '@js-joda/core';
+import { ChronoUnit, LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
 import { MATCHES } from 'class-validator';
 import { Tournament } from '../tournament/entities/tournament.entity';
 @Injectable()
 export class MatchService {
 
   constructor(
-    @InjectRepository(Match)
+
     private readonly matchRepository: MatchRepository,
-    @InjectRepository(Tournament)
 
     private readonly tournamentRepository: TournamentRepository,
-    @InjectRepository(Team)
     private readonly teamRepository: TeamRepository,
     @Inject(forwardRef(() => TeamService)) 
     private readonly teamService: TeamService,
@@ -46,27 +44,35 @@ export class MatchService {
     if (teams.length === 0) {
       throw new BadRequestException('Tournament currently has no teams.');
     }
-
+  
     const numberTeams = teams.length;
-    if (numberTeams % 2 !== 0) {
-      teams.push(new Team()); // Add dummy team
+    const isOdd = numberTeams % 2 !== 0;
+    const adjustedTeams = [...teams]; 
+  
+    if (isOdd) {
+      adjustedTeams.push(new Team()); // Add dummy team
     }
-
+  
+    const totalRounds = adjustedTeams.length - 1;
     const matches: Team[][] = [];
-    // Match scheduling logic
-    for (let i = 0; i < numberTeams - 1; i++) {
-      for (let j = 0; j < numberTeams / 2; j++) {
-        if (teams[j] && teams[numberTeams - 1 - j]) {
-          matches.push([teams[j], teams[numberTeams - 1 - j]]);
+  
+    for (let round = 0; round < totalRounds; round++) {
+      for (let i = 0; i < adjustedTeams.length / 2; i++) {
+        const home = adjustedTeams[i];
+        const away = adjustedTeams[adjustedTeams.length - 1 - i];
+        if (home.teamId && away.teamId) {
+          matches.push([home, away]);
         }
       }
-      // Rotate teams
-      const lastTeam = teams.pop();
-      teams.splice(1, 0, lastTeam);
+      const fixed = adjustedTeams[0];
+      const rest = adjustedTeams.slice(1);
+      rest.unshift(rest.pop()!);
+      adjustedTeams.splice(0, adjustedTeams.length, fixed, ...rest);
     }
-    teams.pop(); // Remove dummy team
+  
     return matches;
   }
+  
 
   timeSheetMatches(
     duration: number,
@@ -115,8 +121,9 @@ export class MatchService {
       }
 
       let j = 0;
-      const thisEventDate = eventDates[i].date.atTime(endDate);
-      let checkDateTime = eventDates[i].date.atTime(startMatch);
+      const parsedDate = LocalDate.parse(eventDates[i].date.toString());
+      const thisEventDate = LocalDateTime.of(parsedDate, endDate);
+      let checkDateTime = LocalDateTime.of(parsedDate, startMatch);
 
       while (
         startMatch.isBefore(eventDates[i].endTime) &&
@@ -166,14 +173,14 @@ async mappingMatchAndTime(
 
   // Ghép cặp các trận đấu với thời gian tương ứng
   for (const [eventDate, timeSlots] of schedule.entries()) {
-    for (let i = 0; i < timeSlots.length; i++, j++) {
+    for (let i = 0; i < timeSlots.length; i++) {
       const times = timeSlots[i];
       const match = new Match();
-      match.eventDate.id = eventDate.id;
+      match.eventDate = { id: eventDate.id } as EventDate;
+      match.teamOne = { teamId: matches[i][0].teamId } as Team;
+      match.teamTwo = { teamId: matches[i][1].teamId } as Team;
       match.startTime = times[0];
       match.endTime = times[1];
-      match.teamOne.teamId = matches[j][0].teamId;
-      match.teamTwo.teamId = matches[j][1].teamId;
       match.matchDuration = duration;
       match.type = TypeMatch.MATCH; 
       matchList.push(match);
@@ -715,5 +722,19 @@ async mappingMatchAndTime(
     ) {
       throw new BadRequestException('This tournament is finished or discarded');
     }
+  }
+
+  async getMatchById(matchId: number): Promise<Match> { 
+    return this.matchRepository.findById(matchId);
+  }
+  async getMatchByEventDateId(eventDateId: number): Promise<Match[]> {
+    return this.matchRepository.getAllByEventDateId(eventDateId);
+  }
+
+  async saveAll(matches: Match[]): Promise<void> {
+    await this.matchRepository.saveAll(matches);
+  }
+  async findAllDuplicateMatchByTournamentId(tournamentId: number): Promise<Match[]> {
+    return this.matchRepository.findAllDuplicateMatchByTournamentId(tournamentId);
   }
 }

@@ -21,6 +21,7 @@ export class CreateTournamentDto {
   @ArrayNotEmpty({ message: 'Event dates array must not be empty' })
   @Type(() => LocalDate)
   @IsDate({ each: true, message: 'Each event date must be a valid date' })
+  @Transform(({ value }) => LocalDate.parse(value))
   eventDates: LocalDate[];
 
   @MaxLength(100, { message: 'Tournament description must be less than 100 characters' })

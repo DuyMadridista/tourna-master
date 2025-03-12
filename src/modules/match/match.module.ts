@@ -8,6 +8,9 @@ import { EventDateModule } from '../event-date/event-date.module';
 import { Team } from '../team/entities/team.entity';
 import { Tournament } from '../tournament/entities/tournament.entity';
 import { MatchUtils } from 'src/helper/match.utils';
+import { TeamRepository } from '../team/team.repository';
+import { MatchRepository } from './match.repository';
+import { TournamentRepository } from '../tournament/tournament.repository';
 
 @Module({
     imports: [
@@ -15,7 +18,7 @@ import { MatchUtils } from 'src/helper/match.utils';
       forwardRef(() => TeamModule) ,
       forwardRef(() => EventDateModule)    ], 
   controllers: [MatchController],
-  providers: [MatchService,MatchUtils],
+  providers: [MatchService,MatchUtils,TeamRepository, MatchRepository, TournamentRepository],
   exports: [MatchService]
 })
 export class MatchModule {}
