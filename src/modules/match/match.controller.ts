@@ -29,6 +29,16 @@ export class MatchController {
     return SuccessResponse(true, 1, updateMatch);
   }
 
+  @Put('dragAndDrop')
+  async dragAndDropMatchOrEvent(@Body() request: RequestDragDropMatch) {
+    const data = await this.matchService.dragAndDropMatch(
+      request.matchId,
+      request.newEventDateId,
+      request.newIndexOfMatch,
+    );
+    return SuccessResponse(true, data.length, data);
+  }
+
   @Put(':matchID')
   async updateMatchDetails(
     @Param('tournamentId') tournamentId: number,
@@ -44,13 +54,5 @@ export class MatchController {
     );
   }
 
-  @Put('dragAndDrop')
-  async dragAndDropMatchOrEvent(@Body() request: RequestDragDropMatch) {
-    const data = await this.matchService.dragAndDropMatch(
-      request.matchId,
-      request.newEventDateId,
-      request.newIndexOfMatch,
-    );
-    return SuccessResponse(true, data.length, data);
-  }
+
 }

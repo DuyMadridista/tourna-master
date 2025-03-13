@@ -8,6 +8,7 @@ import { TournamentRepository } from '../tournament/tournament.repository';
 // import { MatchRepository } from '../match/match.repository';
 import { TournamentStatus } from 'src/enums/tournament-status.enum';
 import { TournamentStatusPermission } from 'src/enums/TournamentStatusPermission';
+import { MatchRepository } from '../match/match.repository';
 
 @Injectable()
 export class TeamService {
@@ -16,7 +17,7 @@ export class TeamService {
     private readonly teamRepository: Repository<Team>,
     @Inject(forwardRef(() => TournamentRepository))
     private readonly tournamentRepository: TournamentRepository,
-    // private readonly matchRepository: MatchRepository,
+    private readonly matchRepository: MatchRepository,
   ) {}
 
   async getAllTeamAndPlayerCount(
@@ -113,7 +114,7 @@ export class TeamService {
       );
     }
 
-    // await this.matchRepository.deleteByTournamentId(tournamentId);
+    await this.matchRepository.deleteMatchByTournamentId(tournamentId);
     tournament.status =TournamentStatus.NEED_INFORMATION;
     await this.tournamentRepository.save(tournament);
 

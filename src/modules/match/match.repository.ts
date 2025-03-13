@@ -25,7 +25,7 @@ export class MatchRepository extends Repository<Match> {
 
   async isHaveMatchInDate(eventDateId: number): Promise<boolean> {
     const result = await this.createQueryBuilder('match')
-      .where('match.eventDateId = :eventDateId', { eventDateId })
+      .where('match.event_date_id = :eventDateId', { eventDateId })
       .getCount();
     return result > 0;
   }
@@ -65,15 +65,18 @@ export class MatchRepository extends Repository<Match> {
       .select([
         'eventDate.date as date',
         'match.id',
-        'match.teamOneId',
-        'match.teamTwoId',
-        'match.teamOneResult',
-        'match.teamTwoResult',
+        'match.team_one_id',
+        'match.team_two_id',
+        'match.team_one_result',
+        'match.team_two_result',
+        'match.start_time',
+        'match.end_time',
+        'eventDate.id as eventDateId',
       ])
       .innerJoin('match.eventDate', 'eventDate')
       .innerJoin('eventDate.tournament', 'tournament')
       .where('tournament.id = :tournamentId', { tournamentId })
-      .andWhere('match.teamOneId IS NOT NULL AND match.teamTwoId IS NOT NULL')
+      .andWhere('match.team_one_id IS NOT NULL AND match.team_two_id IS NOT NULL')
       .orderBy('eventDate.date', 'DESC')
       .getRawMany();
   }
@@ -98,7 +101,7 @@ export class MatchRepository extends Repository<Match> {
       .innerJoin('eventDate.tournament', 'tournament')
       .where('tournament.id = :tournamentId', { tournamentId })
       .andWhere(
-        '(match.teamOneId = :teamOneId AND match.teamTwoId = :teamTwoId) OR (match.teamOneId = :teamTwoId AND match.teamTwoId = :teamOneId)',
+        '(match.team_one_id = :teamOneId AND match.team_two_id = :teamTwoId) OR (match.team_one_id = :teamTwoId AND match.team_two_id = :teamOneId)',
         { teamOneId, teamTwoId },
       )
       .getMany();
@@ -119,8 +122,8 @@ export class MatchRepository extends Repository<Match> {
         'team.id AS teamId',
         'team.name AS teamName',
         'team.score AS score',
-        'SUM(CASE WHEN team.id = match.teamOneId THEN match.teamOneResult ELSE match.teamTwoResult END) - SUM(CASE WHEN team.id = match.teamOneId THEN match.teamTwoResult ELSE match.teamOneResult END) AS theDiff',
-        'SUM(CASE WHEN team.id = match.teamOneId THEN match.teamOneResult ELSE match.teamTwoResult END) AS totalResult',
+        'SUM(CASE WHEN team.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END) - SUM(CASE WHEN team.id = match.team_one_id THEN match.team_two_result ELSE match.team_one_result END) AS theDiff',
+        'SUM(CASE WHEN team.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END) AS totalResult',
       ])
       .innerJoin('match.teamOne', 'team')
       .innerJoin('match.eventDate', 'eventDate')
@@ -136,12 +139,12 @@ export class MatchRepository extends Repository<Match> {
     return this.createQueryBuilder('match')
       .select([
         'match.id',
-        'match.teamOneId',
+        'match.team_one_id',
         'team1.name AS teamOneName',
-        'match.teamTwoId',
+        'match.team_two_id',
         'team2.name AS teamTwoName',
-        'match.teamOneResult',
-        'match.teamTwoResult',
+        'match.team_one_result',
+        'match.team_two_result',
         'eventDate.date',
         'match.start_time',
         'match.end_time',

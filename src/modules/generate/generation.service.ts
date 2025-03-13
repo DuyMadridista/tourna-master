@@ -29,6 +29,8 @@ export class GenerationService {
     startTime: LocalTime,
     endTime: LocalTime,
   ): Promise<SuccessResponseDto<GenerationDto[]>> {
+    // // delete all matches of tournament before generate
+    await this.matchService.deleteAllMatchByTournamentId(tournamentId);
     const matches = await this.matchService.matchList(tournamentId);
     const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
     const tournament = await this.tournamentService.findTournamentById(tournamentId);
@@ -73,7 +75,9 @@ export class GenerationService {
       matchList = await this.matchService.mappingMatchAndTime(matches, timeSheetMatches, duration);
     }
 
-    eventDates.sort((a, b) => a.date.compareTo(b.date));
+    eventDates.sort((a, b) =>
+      LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
+    );
     const generations: GenerationDto[] = await Promise.all(
         eventDates.map(eventDate =>
           this.matchUtils.createGeneration(eventDate, matchList)
@@ -137,7 +141,9 @@ export class GenerationService {
   async getAllGeneration(tournamentId: number): Promise<SuccessResponseDto<GenerationDto[]>> {
     const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
     const generations: GenerationDto[] = [];
-    eventDates.sort((a, b) => a.date.compareTo(b.date));
+    eventDates.sort((a, b) =>
+      LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
+    );
     for (const eventDate of eventDates) {
       const matches =await this.matchUtils.convertMatchListToMatchDtoList(await this.matchService.getMatchByEventDateId(eventDate.id));
       generations.push(await this.matchUtils.createGeneration(eventDate, matches));

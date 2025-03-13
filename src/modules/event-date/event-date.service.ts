@@ -39,7 +39,7 @@ export class EventDateService {
   }
 
   async findByEventDateId(eventDateId: number): Promise<EventDate> {
-    const eventDate = await this.eventDateRepository.findById(eventDateId);
+    const eventDate = await this.eventDateRepository.findOne({where: {id: eventDateId}, relations: ['tournament'] });
     if (!eventDate) {
       throw new NotFoundException(`EventDate with id ${eventDateId} does not exist`);
     }

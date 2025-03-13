@@ -23,8 +23,8 @@ export class MatchUtils {
     const matchDTO = new MatchDto();
     matchDTO.id = match.id;
     if (match.type === TypeMatch.MATCH) {
-      matchDTO.teamOne = await this.teamService.getTeamById(match.teamOne.teamId);
-      matchDTO.teamTwo = await this.teamService.getTeamById(match.teamTwo.teamId);
+      matchDTO.teamOne = match.teamOne;
+      matchDTO.teamTwo = match.teamTwo;
     }
     matchDTO.timeDuration = match.matchDuration;
     matchDTO.startTime = match.startTime;
@@ -76,11 +76,14 @@ export class MatchUtils {
       numberOfTimeEachEvent.set(eventDate, countTime);
     }
   
-    return new Map(
-      [...numberOfTimeEachEvent.entries()].sort((a, b) =>
-       a[0].date.compareTo((b[0].date)),
-      ),
-    );
+    const sortedEntries = [...numberOfTimeEachEvent.entries()].sort((a, b) => {
+      const dateA = LocalDate.parse(a[0].date.toString());
+      const dateB = LocalDate.parse(b[0].date.toString());
+      return dateA.compareTo(dateB);
+    });
+    
+    return new Map(sortedEntries);
+    
   }
 
   async convertMatchListToMatchDtoList(matches: Match[]): Promise<MatchDto[]> {

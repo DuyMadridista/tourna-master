@@ -69,7 +69,11 @@ export class MatchService {
       rest.unshift(rest.pop()!);
       adjustedTeams.splice(0, adjustedTeams.length, fixed, ...rest);
     }
-  
+    
+    for (let i = matches.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [matches[i], matches[j]] = [matches[j], matches[i]];
+    }
     return matches;
   }
   
@@ -82,85 +86,88 @@ export class MatchService {
   ): Map<EventDate, LocalTime[][]> {
     if (numMatch < eventDates.length) {
       eventDates = eventDates
-        .sort((a, b) => a.date.compareTo(b.date))
+        .sort((a, b) => LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString())))
         .slice(0, numMatch);
     }
-
-    let numEvent = eventDates.length;
-    let timeSheetEachEventDate = Math.floor(numMatch / numEvent);
-
-    const numberOfTimeSheet = this.matchUtils.timeSheet(duration, betweenTime, eventDates);
-    const countTimeSheet = Array.from(numberOfTimeSheet.values()).reduce((a, b) => a + b, 0);
-
-    if (countTimeSheet < numMatch) {
-      throw new BadRequestException(
-        'The tournament schedule does not accommodate the current number of matches.',
-      );
+  
+    let remainingMatches = numMatch;
+    let remainingEvents = eventDates.length;
+    let matchesPerDay = Math.floor(remainingMatches / remainingEvents);
+  
+    const availableTimeSlots = this.matchUtils.timeSheet(duration, betweenTime, eventDates);
+    const totalTimeSlots = Array.from(availableTimeSlots.values()).reduce((a, b) => a + b, 0);
+  
+    if (totalTimeSlots < numMatch) {
+      throw new BadRequestException('The tournament schedule does not accommodate the current number of matches.');
     }
-
-    const allEqual = new Set(numberOfTimeSheet.values()).size === 1;
-    if (allEqual) {
-      eventDates.sort((a, b) => a.date.compareTo(b.date));
-    } else {
-      eventDates.sort((a, b) => numberOfTimeSheet.get(a)! - numberOfTimeSheet.get(b)!);
-    }
-
+  
+    const allEqualSlots = new Set(availableTimeSlots.values()).size === 1;
+    eventDates.sort((a, b) => {
+      if (allEqualSlots) {
+        return LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()));
+      }
+      return (availableTimeSlots.get(a) ?? 0) - (availableTimeSlots.get(b) ?? 0);
+    });
+  
     const schedule = new Map<EventDate, LocalTime[][]>();
-
+  
     for (let i = 0; i < eventDates.length; i++) {
-      let startMatch = eventDates[i].startTime;
-      let endMatch = startMatch.plusMinutes(duration);
-      const endDate = LocalTime.of(23, 59, 59);
-      let times: LocalTime[][] = [];
-
-      if (numMatch < eventDates.length && schedule.has(eventDates[i])) {
-        const lastMatch = schedule.get(eventDates[i])!.slice(-1)[0];
-        startMatch = lastMatch[1].plusMinutes(betweenTime);
-        endMatch = startMatch.plusMinutes(duration);
-        times = [...schedule.get(eventDates[i])!];
+      const currentEvent = eventDates[i];
+      const parsedDate = LocalDate.parse(currentEvent.date.toString());
+      const latestPossibleTime = LocalTime.of(23, 59, 59);
+      const latestPossibleDateTime = LocalDateTime.of(parsedDate, latestPossibleTime);
+  
+      let startTime = currentEvent.startTime;
+      let endTime = startTime.plusMinutes(duration);
+      let matchSlots: LocalTime[][] = schedule.get(currentEvent) ?? [];
+  
+      if (numMatch < eventDates.length && schedule.has(currentEvent)) {
+        const lastMatch = matchSlots[matchSlots.length - 1];
+        startTime = lastMatch[1].plusMinutes(betweenTime);
+        endTime = startTime.plusMinutes(duration);
       }
-
-      let j = 0;
-      const parsedDate = LocalDate.parse(eventDates[i].date.toString());
-      const thisEventDate = LocalDateTime.of(parsedDate, endDate);
-      let checkDateTime = LocalDateTime.of(parsedDate, startMatch);
-
+  
+      let addedMatches = 0;
+      let currentDateTime = LocalDateTime.of(parsedDate, startTime);
+  
       while (
-        startMatch.isBefore(eventDates[i].endTime) &&
-        endMatch.isBefore(eventDates[i].endTime) &&
-        j < timeSheetEachEventDate &&
-        numMatch > 0 &&
-        checkDateTime.isBefore(thisEventDate)
+        endTime.isBefore(currentEvent.endTime) &&
+        addedMatches < matchesPerDay &&
+        remainingMatches > 0 &&
+        currentDateTime.isBefore(latestPossibleDateTime)
       ) {
-        times.push([startMatch, endMatch]);
-        startMatch = endMatch.plusMinutes(betweenTime);
-        endMatch = startMatch.plusMinutes(duration);
-        checkDateTime = checkDateTime.plusMinutes(betweenTime + duration);
-        numMatch--;
-        j++;
+        matchSlots.push([startTime, endTime]);
+        startTime = endTime.plusMinutes(betweenTime);
+        endTime = startTime.plusMinutes(duration);
+        currentDateTime = currentDateTime.plusMinutes(duration + betweenTime);
+        remainingMatches--;
+        addedMatches++;
       }
-
-      numEvent--;
-
-      if (times.length < timeSheetEachEventDate && numEvent > 0) {
-        timeSheetEachEventDate = Math.floor(numMatch / numEvent);
+  
+      remainingEvents--;
+      if (matchSlots.length < matchesPerDay && remainingEvents > 0) {
+        matchesPerDay = Math.floor(remainingMatches / remainingEvents);
       }
-
-      schedule.set(eventDates[i], times);
-
-      if (numMatch < eventDates.length && numEvent === 0) {
+  
+      schedule.set(currentEvent, matchSlots);
+  
+      // Nếu số trận ít hơn số ngày nhưng chưa chia đủ → chạy lại
+      if (numMatch < eventDates.length && remainingEvents === 0 && remainingMatches > 0) {
         i = -1;
-        timeSheetEachEventDate = 1;
-        numEvent = eventDates.length;
+        matchesPerDay = 1;
+        remainingEvents = eventDates.length;
       }
-
-      if (numMatch === 0) {
-        break;
-      }
+  
+      if (remainingMatches === 0) break;
     }
-
-    return new Map([...schedule.entries()].sort((a, b) => a[0].date.compareTo(b[0].date)));
+  
+    return new Map(
+      [...schedule.entries()].sort((a, b) =>
+        LocalDate.parse(a[0].date.toString()).compareTo(LocalDate.parse(b[0].date.toString()))
+      )
+    );
   }
+  
 
 
 async mappingMatchAndTime(
@@ -173,19 +180,20 @@ async mappingMatchAndTime(
 
   // Ghép cặp các trận đấu với thời gian tương ứng
   for (const [eventDate, timeSlots] of schedule.entries()) {
-    for (let i = 0; i < timeSlots.length; i++) {
+    for (let i = 0; i < timeSlots.length; i++, j++) {
       const times = timeSlots[i];
       const match = new Match();
       match.eventDate = { id: eventDate.id } as EventDate;
-      match.teamOne = { teamId: matches[i][0].teamId } as Team;
-      match.teamTwo = { teamId: matches[i][1].teamId } as Team;
+      match.teamOne = { teamId: matches[j][0].teamId } as Team;
+      match.teamTwo = { teamId: matches[j][1].teamId } as Team;
       match.startTime = times[0];
       match.endTime = times[1];
       match.matchDuration = duration;
-      match.type = TypeMatch.MATCH; 
+      match.type = TypeMatch.MATCH;
       matchList.push(match);
     }
   }
+  
 
   await this.matchRepository.saveAll(matchList);
   const matchDTOs: MatchDto[] = [];
@@ -201,7 +209,7 @@ async mappingMatchAndTime(
 }
 
   async dragAndDropMatch(matchId: number, newEventDateId: number, newIndexOfMatch: number): Promise<GenerationDto[]> {
-    const match = await this.matchRepository.findOne({ where: { id: matchId } });
+    const match = await this.matchRepository.findOne({ where: { id: matchId } , relations: ['eventDate']});
     if (!match) {
       throw new NotFoundException(`Match with id ${matchId} not found`);
     }
@@ -209,7 +217,7 @@ async mappingMatchAndTime(
     const oldEventDate = await this.eventDateService.findById(match.eventDate.id);
     const newEventDate = await this.eventDateService.findById(newEventDateId);
 
-    if (match.startTime<  LocalTime.now() && oldEventDate.date <= LocalDate.now()) {
+    if ( LocalTime.parse(match.startTime.toString()).isBefore(LocalTime.now()) && LocalDate.parse(oldEventDate.date.toString()).isBefore( LocalDate.now())) {
       throw new BadRequestException('Cannot change match in the past');
     }
 
@@ -217,7 +225,7 @@ async mappingMatchAndTime(
     if (oldEventDate.date === newEventDate.date) {
       result = await this.dragAndDropMatchInDate(match, oldEventDate, newIndexOfMatch);
     } else {
-      if (newEventDate.date < LocalDate.now()) {
+      if (LocalDate.parse(newEventDate.date.toString()).isBefore( LocalDate.now())) {
         throw new BadRequestException('Cannot change match to the past');
       }
       result = await this.dragAndDropMatchBetweenDate(match, oldEventDate, newEventDate, newIndexOfMatch);
@@ -258,7 +266,7 @@ async mappingMatchAndTime(
         date: eventDate.date,
         startTime: eventDate.startTime,
         endTime: eventDate.endTime,
-        matches: this.matchUtils.convertMatchToMatchDto(matches) as unknown as MatchDto[],
+        matches: await this.matchUtils.convertMatchToMatchDto(matches) as unknown as MatchDto[],
       },
     ];
   
@@ -272,45 +280,29 @@ async mappingMatchAndTime(
     newEventDate: EventDate,
     newIndexOfMatch: number,
   ): Promise<GenerationDto[]> {
-    /*
-     Thay đổi tất cả trận đấu trong OldEventDate
-    */
+    // Xử lý xóa match khỏi oldEventDate
     let oldEventDateMatches = await this.matchRepository.getAllByEventDateId(oldEventDate.id);
-    let isRemoveMatchInDate = true;
-    let isAddNewMatchInDate = false;
-  
     oldEventDateMatches = await this.changeTimeMatchInDate(
       match,
       oldEventDateMatches,
       newIndexOfMatch,
-      newEventDate.id,
-      isAddNewMatchInDate,
-      isRemoveMatchInDate,
+      oldEventDate.id,
+      false, // isAddNewMatchInDate
+      true   // isRemoveMatchInDate
     );
-  
     await this.matchRepository.saveAll(oldEventDateMatches);
   
-    /*
-     Thay đổi tất cả trận đấu trong NewEventDate
-    */
+    // Xử lý thêm match vào newEventDate
     let newEventDateMatches = await this.matchRepository.getAllByEventDateId(newEventDate.id);
-    isRemoveMatchInDate = false;
-    isAddNewMatchInDate = true;
-  
     newEventDateMatches = await this.changeTimeMatchInDate(
       match,
       newEventDateMatches,
       newIndexOfMatch,
       newEventDate.id,
-      isAddNewMatchInDate,
-      isRemoveMatchInDate,
+      true,  // isAddNewMatchInDate
+      false  // isRemoveMatchInDate
     );
-  
     await this.matchRepository.saveAll(newEventDateMatches);
-  
-    // Sắp xếp danh sách trận đấu theo thời gian bắt đầu
-    oldEventDateMatches = oldEventDateMatches.sort((a, b) => a.startTime.compareTo(b.startTime));
-    newEventDateMatches = newEventDateMatches.sort((a, b) => a.startTime.compareTo(b.startTime));
   
     // Trả về danh sách GenerationDto
     const result: GenerationDto[] = [
@@ -329,9 +321,9 @@ async mappingMatchAndTime(
         matches: this.matchUtils.convertMatchToMatchDto(newEventDateMatches) as unknown as MatchDto[],
       },
     ];
-  
     return result;
   }
+  
   async changeTimeMatchInDate(
     match: Match,
     matchesInDate: Match[],
@@ -340,115 +332,93 @@ async mappingMatchAndTime(
     isAddNewMatchInDate: boolean,
     isRemoveMatchInDate: boolean,
   ): Promise<Match[]> {
-    // Sắp xếp danh sách trận đấu theo thời gian bắt đầu
+    // Sort matches by start time
     matchesInDate = matchesInDate.sort((a, b) => a.startTime.compareTo(b.startTime));
   
     let oldIndex: number | null = null;
     if (!isAddNewMatchInDate) {
-      oldIndex = matchesInDate.findIndex((eachMatch) => eachMatch.id === match.id);
+      oldIndex = matchesInDate.findIndex((m) => m.id === match.id);
     }
   
     const duration = match.matchDuration;
+  
     if (!isAddNewMatchInDate && !isRemoveMatchInDate) {
       newEventDateId = match.eventDate.id;
     }
   
-    const newEventDateOpt = await this.eventDateService.findByEventDateId(newEventDateId);
-    if (!newEventDateOpt) {
+    const newEventDate = await this.eventDateService.findByEventDateId(newEventDateId);
+    if (!newEventDate) {
       throw new NotFoundException(`Not found Event Date with Id: ${newEventDateId}`);
     }
   
-    const tournament = await this.tournamentRepository.findActiveTournamentById(newEventDateOpt.tournament.id);
+    const tournament = await this.tournamentRepository.findActiveTournamentById(newEventDate.tournament.id);
     if (!tournament) {
       throw new NotFoundException('Tournament not found');
     }
   
     const betweenTime = tournament.timeBetween;
     const timeChange = duration + betweenTime;
-    let newStartTime: LocalTime | null = null;
-    let newEndTime: LocalTime | null = null;
+    let newStartTime: LocalTime;
+    let newEndTime: LocalTime;
     let timeDifference = 0;
   
+    // Case: Move match within the same date
     if (!isAddNewMatchInDate && !isRemoveMatchInDate) {
-      if (oldIndex! < newIndexOfMatch) {
-        for (let index = oldIndex! + 1; index < newIndexOfMatch; index++) {
-          const eachMatch = matchesInDate[index];
-          newStartTime = eachMatch.startTime;
-          newEndTime = eachMatch.endTime;
-          timeDifference = duration - eachMatch.matchDuration;
-          eachMatch.endTime = newEndTime.minusMinutes(timeChange);
-          eachMatch.startTime = newStartTime.minusMinutes( timeChange);
-        }
-        match.startTime = newStartTime.minusMinutes(timeDifference);
-        match.endTime = match.startTime.plusMinutes(timeDifference);
-        matchesInDate[oldIndex!] = match;
-      } else {
-        for (let index = oldIndex! - 1; index >= newIndexOfMatch - 1; index--) {
-          const eachMatch = matchesInDate[index];
-          newStartTime = eachMatch.startTime;
-          newEndTime = eachMatch.endTime;
-          eachMatch.endTime = newEndTime.plusMinutes(timeChange), timeChange;
-          eachMatch.startTime = newStartTime.plusMinutes(timeChange), timeChange;
-        }
-        match.startTime = newStartTime!.minusMinutes(timeDifference);
-        match.endTime = match.startTime.plusMinutes(duration);
-        matchesInDate[oldIndex!] = match;
+      // Remove match khỏi danh sách cũ
+      matchesInDate.splice(oldIndex!, 1);
+      // Chèn vào vị trí mới
+      matchesInDate.splice(newIndexOfMatch, 0, match);
+    
+      // Cập nhật lại toàn bộ thời gian trận đấu sau khi reorder
+      let currentStartTime = newEventDate.startTime;
+    
+      for (let i = 0; i < matchesInDate.length; i++) {
+        const eachMatch = matchesInDate[i];
+        eachMatch.startTime = currentStartTime;
+        eachMatch.endTime = currentStartTime.plusMinutes(eachMatch.matchDuration);
+        // Update currentStartTime cho trận tiếp theo
+        currentStartTime = eachMatch.endTime.plusMinutes(betweenTime);
       }
     }
+    
   
+    // Case: Remove match from the date
     if (isRemoveMatchInDate) {
-      for (let index = oldIndex! + 1; index < matchesInDate.length; index++) {
-        const eachMatch = matchesInDate[index];
-        newStartTime = eachMatch.startTime;
-        newEndTime = eachMatch.endTime;
-        eachMatch.endTime = newEndTime.plusMinutes(timeChange);
-        eachMatch.startTime = newStartTime.plusMinutes(timeChange);
+      for (let i = oldIndex! + 1; i < matchesInDate.length; i++) {
+        const eachMatch = matchesInDate[i];
+        eachMatch.startTime = eachMatch.startTime.minusMinutes(timeChange);
+        eachMatch.endTime = eachMatch.endTime.minusMinutes(timeChange);
       }
       matchesInDate.splice(oldIndex!, 1);
     }
   
+    // Case: Add new match to date
     if (isAddNewMatchInDate) {
-      let isAddToTheEnd = true;
-      for (let index = matchesInDate.length - 1; index >= newIndexOfMatch - 1; index--) {
-        const eachMatch = matchesInDate[index];
-        newStartTime = eachMatch.startTime;
-        newEndTime = eachMatch.endTime;
-        eachMatch.endTime = newEndTime.plusMinutes(timeChange);
-        eachMatch.startTime = newStartTime.plusMinutes(timeChange);
-  
-        if (eachMatch.endTime < newEndTime) {
-          throw new BadRequestException('Not enough time to schedule');
-        }
-        isAddToTheEnd = false;
+      // Insert match vào vị trí mới
+      matchesInDate.splice(newIndexOfMatch, 0, match);
+    
+      // Cập nhật lại thời gian toàn bộ trận đấu theo thứ tự mới
+      let currentStartTime = newEventDate.startTime;
+      for (let i = 0; i < matchesInDate.length; i++) {
+        const eachMatch = matchesInDate[i];
+        eachMatch.startTime = currentStartTime;
+        eachMatch.endTime = currentStartTime.plusMinutes(eachMatch.matchDuration);
+        currentStartTime = eachMatch.endTime.plusMinutes(betweenTime);
       }
-  
-      if (isAddToTheEnd) {
-        if (matchesInDate.length === 0) {
-          newStartTime = (await this.eventDateService.findByEventDateId(newEventDateId))!.startTime;
-        } else {
-          newStartTime = matchesInDate[matchesInDate.length - 1].endTime.plusMinutes(betweenTime);
-          if (newStartTime < matchesInDate[matchesInDate.length - 1].endTime) {
-            throw new BadRequestException('Not enough time to schedule');
-          }
-        }
-        if (newStartTime.plusMinutes(duration) <= newStartTime) {
-          throw new BadRequestException('Not enough time to schedule');
-        }
-      }
-  
-      match.startTime = newStartTime!.minusMinutes(timeDifference);
-      match.endTime = match.startTime.plusMinutes(duration);
+    
       match.eventDate.id = newEventDateId;
-  
-      if (new Date(`${newEventDateOpt.date}T${match.startTime}`) < new Date()) {
-        throw new BadRequestException('Cannot move Match or Event to the past.');
+    
+      // Check if match is scheduled in the past
+      const now = new Date();
+      const matchDateTime = new Date(`${newEventDate.date}T${match.startTime.toString()}`);
+      if (matchDateTime < now) {
+        throw new BadRequestException('Cannot move Match or Event to the past');
       }
-  
-      matchesInDate.push(match);
-    }
+    }    
   
     return matchesInDate;
   }
+  
   
   
   async updateMatchDetails(
@@ -587,8 +557,7 @@ async mappingMatchAndTime(
     const resultMap: Map<string, ResultDto> = new Map();
 
     for (const data of arrayData) {
-      // get date from data[0]
-      const date = new Date(data[0]).toISOString().split('T')[0];
+      const date = new Date(data?.date).toISOString().split('T')[0];
       let resultDto = resultMap.get(date);
 
       if (!resultDto) {
@@ -600,16 +569,16 @@ async mappingMatchAndTime(
       }
 
       const match: MatchResultDto = {
-        id: +data[1],
-        teamOneId: +data[2],
-        teamTwoId: +data[3],
-        teamOneName:await this.teamRepository.getTeamNameByTeamId(+data[2]),
-        teamTwoName: await this.teamRepository.getTeamNameByTeamId(+data[3]),
-        teamOneResult: data[4] ? +data[4] : null,
-        teamTwoResult: data[5] ? +data[5] : null,
-        startTime: data[6],
-        endTime: data[7] ,
-        eventDateId: +data[8],
+        id: +data?.match_id,
+        teamOneId: +data?.team_one_id ,
+        teamTwoId: +data?.team_two_id,
+        teamOneName:await this.teamRepository.getTeamNameByTeamId(+data?.team_one_id),
+        teamTwoName: await this.teamRepository.getTeamNameByTeamId(+data?.team_two_id),
+        teamOneResult: data?.team_one_result ? +data?.team_one_result : null,
+        teamTwoResult: data?.team_two_result ? +data?.team_two_result : null,
+        startTime: data?.start_time,
+        endTime: data?.end_time,
+        eventDateId: +data?.eventDateId,
         title: '',
         type: TypeMatch.MATCH
       };
@@ -703,9 +672,6 @@ async mappingMatchAndTime(
   /**
    * Delete all matches by tournament ID
    */
-  async deleteAllByTournamentId(tournamentId: number): Promise<void> {
-    await this.matchRepository.deleteMatchByTournamentId(tournamentId);
-  }
 
   /**
    * Validate if a tournament is finished or discarded
@@ -736,5 +702,8 @@ async mappingMatchAndTime(
   }
   async findAllDuplicateMatchByTournamentId(tournamentId: number): Promise<Match[]> {
     return this.matchRepository.findAllDuplicateMatchByTournamentId(tournamentId);
+  }
+  async deleteAllMatchByTournamentId(tournamentId: number): Promise<void> {
+    await this.matchRepository.deleteMatchByTournamentId(tournamentId);
   }
 }

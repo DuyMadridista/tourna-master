@@ -111,7 +111,7 @@ public async getAll(
     tournament.status = TournamentStatus.DELETED;
 
     await Promise.all([
-      this.matchService.deleteAllByTournamentId(tournament.id),
+      this.matchService.deleteAllMatchByTournamentId(tournament.id),
       this.playerService.deleteAllPlayerByTournamentId(tournament.id),
       this.teamService.deleteTeamByTournamentId(id),
       this.eventDateService.deleteAllByTournamentId(tournament.id)
@@ -195,13 +195,13 @@ public async getAll(
     // if (UpdateTournamentDto.organizers) {
     //   await this.organizerTournamentService.deleteAllByTournamentId(tournamentId);
     //   const organizers = await Promise.all(
-    //     UpdateTournamentDto.organizers.map(public async userId => ({
+    //     UpdateTournamentDto.organizers.map( async userId => ({
     //       userId: userId,
     //       tournamentId
     //     }))
     //   );
     //   await this.organizerTournamentService.saveAll(organizers);
-    // }
+ //   }
   }
 
    public async editEventDatesInGeneral(
@@ -218,9 +218,10 @@ public async getAll(
       await this.eventDateService.deleteAllByTournamentId(tournamentId);
     } else {
       for (const eventDate of eventDates) {
-        const date = eventDate.date;
+        const date = LocalDate.parse(eventDate.date.toString()); 
+        const today = LocalDate.now(); 
         if (!UpdateTournamentDto.eventDates.includes(date)) {
-          if (date.isBefore( LocalDate.now())) {  
+          if (date.isBefore(today)) {  
             throw new BadRequestException('Cannot delete event date that is today or before');
           }
           if (await this.matchService.isHaveMatchInDate(eventDate.id)) {
