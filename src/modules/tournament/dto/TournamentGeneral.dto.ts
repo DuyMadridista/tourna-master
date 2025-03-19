@@ -15,10 +15,16 @@ export class TournamentGeneralDto {
   @ApiProperty({ description: 'Description of the tournament' })
   description: string;
 
-  @ApiProperty({ description: 'Current status of the tournament', enum: TournamentStatus })
+  @ApiProperty({
+    description: 'Current status of the tournament',
+    enum: TournamentStatus,
+  })
   status: TournamentStatus;
 
-  @ApiProperty({ description: 'Category details of the tournament', type: () => CategoryDto })
+  @ApiProperty({
+    description: 'Category details of the tournament',
+    type: () => CategoryDto,
+  })
   category: CategoryDto;
 
   @ApiProperty({

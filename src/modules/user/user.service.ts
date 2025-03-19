@@ -1,5 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { User } from './entities/user.entity';
 import { UserRole } from 'src/enums/user-role.enum';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -18,14 +21,16 @@ export class UserService {
 
   constructor(
     @InjectRepository(UserRepository)
-    private userRepository: UserRepository ,
-    private readonly commonValidation: CommonValidationService
+    private userRepository: UserRepository,
+    private readonly commonValidation: CommonValidationService,
   ) {}
 
   async loadUserByUsername(username: string): Promise<User> {
     const user = await this.userRepository.findUserByEmail(username);
     if (!user) {
-      throw new NotFoundException(`User not found with username or email: ${username}`);
+      throw new NotFoundException(
+        `User not found with username or email: ${username}`,
+      );
     }
     return user;
   }
@@ -35,10 +40,10 @@ export class UserService {
     sortType: 'ASC' | 'DESC',
     page: number,
     size: number,
-    sortValue: string
+    sortValue: string,
   ): Promise<OrganizerTableDto[]> {
     this.commonValidation.validatePageAndSize(page, size);
-    
+
     if (!sortType) {
       sortValue = 'id';
       sortType = 'DESC';
@@ -49,7 +54,7 @@ export class UserService {
       sortValue,
       sortType,
       page,
-      size
+      size,
     );
 
     if (!foundUsers.length) {
@@ -60,7 +65,8 @@ export class UserService {
   }
 
   async totalOrganizer(keyword: string): Promise<number> {
-    return this.userRepository.totalOrganizer(keyword.trim()
+    return this.userRepository.totalOrganizer(
+      keyword.trim(),
       // this.commonValidation.escapeSpecialCharacters(keyword.trim())
     );
   }
@@ -77,16 +83,24 @@ export class UserService {
   }
 
   async createOrganizer(organizer: OrganizerUpSertDto): Promise<User> {
-    if (organizer.dateOfBirth && !DateValidatorUtils.isBeforeToday(organizer.dateOfBirth)) {
+    if (
+      organizer.dateOfBirth &&
+      !DateValidatorUtils.isBeforeToday(organizer.dateOfBirth)
+    ) {
       throw new BadRequestException('Date of birth must be before today');
     }
 
-    const existingUser = await this.userRepository.findOneBy({email: organizer.email});
+    const existingUser = await this.userRepository.findOneBy({
+      email: organizer.email,
+    });
     if (existingUser) {
       throw new BadRequestException('Email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(organizer.password ?? this.ORGANIZER_DEFAULT_PASSWORD, 10);
+    const hashedPassword = await bcrypt.hash(
+      organizer.password ?? this.ORGANIZER_DEFAULT_PASSWORD,
+      10,
+    );
     const user = this.userRepository.create({
       email: organizer.email,
       password: hashedPassword,
@@ -100,8 +114,14 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async updateOrganizer(id: number, organizer: OrganizerUpSertDto): Promise<User> {
-    if (organizer.dateOfBirth && !DateValidatorUtils.isBeforeToday(organizer.dateOfBirth)) {
+  async updateOrganizer(
+    id: number,
+    organizer: OrganizerUpSertDto,
+  ): Promise<User> {
+    if (
+      organizer.dateOfBirth &&
+      !DateValidatorUtils.isBeforeToday(organizer.dateOfBirth)
+    ) {
       throw new BadRequestException('Date of birth must be before today');
     }
 
@@ -110,7 +130,9 @@ export class UserService {
       throw new NotFoundException('Organizer not found');
     }
 
-    const userByEmail = await this.userRepository.findOneBy({email: organizer.email});
+    const userByEmail = await this.userRepository.findOneBy({
+      email: organizer.email,
+    });
     if (userByEmail && userByEmail.id !== id) {
       throw new BadRequestException('Email already exists');
     }
@@ -142,7 +164,10 @@ export class UserService {
     return user;
   }
 
-  async isOrganizerOfTournament(email: string, tournamentId: number): Promise<boolean> {
+  async isOrganizerOfTournament(
+    email: string,
+    tournamentId: number,
+  ): Promise<boolean> {
     const user = await this.userRepository.findUserByEmail(email);
     if (!user) {
       throw new NotFoundException('Organizer not found');
@@ -150,59 +175,70 @@ export class UserService {
 
     const isOrganizer = await this.userRepository.isOrganizerOfTournament(
       user.id,
-      tournamentId
+      tournamentId,
     );
 
     return !!isOrganizer;
   }
 
-  async changePassword(user: User, request: ChangePasswordRequestDto): Promise<OrganizerUpSertDto> {
+  async changePassword(
+    user: User,
+    request: ChangePasswordRequestDto,
+  ): Promise<OrganizerUpSertDto> {
     if (!request.newPassword?.trim()) {
       throw new BadRequestException('New password must not be empty');
     }
 
     const isOldPasswordValid = await bcrypt.compare(
       request.oldPassword.trim(),
-      user.password
+      user.password,
     );
     if (!isOldPasswordValid) {
       throw new BadRequestException('Old password is not correct');
     }
 
     if (request.newPassword.trim() === request.oldPassword.trim()) {
-      throw new BadRequestException('New password must be different from old password');
+      throw new BadRequestException(
+        'New password must be different from old password',
+      );
     }
 
     if (request.newPassword.trim() !== request.confirmPassword.trim()) {
-      throw new BadRequestException('Confirm password must be the same as new password');
+      throw new BadRequestException(
+        'Confirm password must be the same as new password',
+      );
     }
 
     user.password = await bcrypt.hash(request.newPassword.trim(), 10);
     await this.userRepository.save(user);
-    
+
     return OrganizerUpSertDto.fromUser(user);
   }
 
-    async findAllOrganizer(): Promise<User[]> {
-      const users = await this.userRepository
-        .createQueryBuilder('user')
-        .where('user.role = :role', { role: UserRole.ORGANIZER })
-        .getMany();
-    
-      return users;
-    }
+  async findAllOrganizer(): Promise<User[]> {
+    const users = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.role = :role', { role: UserRole.ORGANIZER })
+      .getMany();
 
-    async findUserByTournamentId (tournamentId: number): Promise<UserDto[]> {
-      const users = await this.userRepository.findUserByTournamentId(tournamentId);
-      return users;
-    }
-     
-    async findOrganizerInGeneral(tournamentId: number): Promise<OrganizerInGeneralDto[]> {
-      const organizers = await this.userRepository.findOrganizerInGeneral(tournamentId);
-      return organizers;
-    }
+    return users;
+  }
+
+  async findUserByTournamentId(tournamentId: number): Promise<UserDto[]> {
+    const users =
+      await this.userRepository.findUserByTournamentId(tournamentId);
+    return users;
+  }
+
+  async findOrganizerInGeneral(
+    tournamentId: number,
+  ): Promise<OrganizerInGeneralDto[]> {
+    const organizers =
+      await this.userRepository.findOrganizerInGeneral(tournamentId);
+    return organizers;
+  }
   async getUserById(id: number): Promise<User> {
-    const user = await this.userRepository.findOneBy({id: id});
+    const user = await this.userRepository.findOneBy({ id: id });
     if (!user) {
       throw new NotFoundException('User not found');
     }

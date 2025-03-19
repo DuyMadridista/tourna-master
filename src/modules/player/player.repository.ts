@@ -4,40 +4,42 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class PlayerRepository extends Repository<Player> {
-    constructor(private dataSource: DataSource) {
-        super(Player, dataSource.createEntityManager());
-    }
+  constructor(private dataSource: DataSource) {
+    super(Player, dataSource.createEntityManager());
+  }
 
-    async getAllPlayersByTeamId(teamId: number): Promise<Player[]> {
-        return this
-            .createQueryBuilder('player')
-            .where('player.team_id = :teamId', { teamId })
-            .orderBy('player.createdAt', 'DESC')
-            .getMany();
-    }
+  async getAllPlayersByTeamId(teamId: number): Promise<Player[]> {
+    return this.createQueryBuilder('player')
+      .where('player.team_id = :teamId', { teamId })
+      .orderBy('player.createdAt', 'DESC')
+      .getMany();
+  }
 
-    async getTotalPlayersByTeamId(teamId: number): Promise<number> {
-        return this
-            .createQueryBuilder('player')
-            .where('player.team_id = :teamId', { teamId })
-            .getCount();
-    }
+  async getTotalPlayersByTeamId(teamId: number): Promise<number> {
+    return this.createQueryBuilder('player')
+      .where('player.team_id = :teamId', { teamId })
+      .getCount();
+  }
 
-    async findByPlayerIdAndTeamId(playerId: number, teamId: number): Promise<Player> {
-        return this
-            .createQueryBuilder('player')
-            .where('player.playerId = :playerId', { playerId })
-            .andWhere('player.team_id = :teamId', { teamId })
-            .getOne();
-    }
+  async findByPlayerIdAndTeamId(
+    playerId: number,
+    teamId: number,
+  ): Promise<Player> {
+    return this.createQueryBuilder('player')
+      .where('player.playerId = :playerId', { playerId })
+      .andWhere('player.team_id = :teamId', { teamId })
+      .getOne();
+  }
 
-    async deleteAllPlayerByTournamentId(tournamentId: number): Promise<void> {
-        await this
-            .createQueryBuilder('player')
-            .delete()
-            .where(`players.team_id IN (
+  async deleteAllPlayerByTournamentId(tournamentId: number): Promise<void> {
+    await this.createQueryBuilder('player')
+      .delete()
+      .where(
+        `players.team_id IN (
                 SELECT id FROM teams WHERE tournament_id = :tournamentId
-            )`, { tournamentId })
-            .execute();
-    }
+            )`,
+        { tournamentId },
+      )
+      .execute();
+  }
 }

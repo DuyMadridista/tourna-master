@@ -7,12 +7,12 @@ import { TournamentModule } from '../tournament/tournament.module';
 import { MatchRepository } from '../match/match.repository';
 
 @Module({
-    imports: [
-      TypeOrmModule.forFeature([Team]), 
-      forwardRef(() => TournamentModule) 
-    ], 
+  imports: [
+    TypeOrmModule.forFeature([Team]),
+    forwardRef(() => TournamentModule),
+  ],
   controllers: [TeamController],
-  providers: [TeamService,MatchRepository],
-  exports: [TeamService]
+  providers: [TeamService, MatchRepository],
+  exports: [TeamService],
 })
 export class TeamModule {}

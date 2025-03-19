@@ -7,7 +7,6 @@ import { UserRole } from 'src/enums/user-role.enum';
 import { OrganizerTableDto } from './dto/organizer-table.dto';
 
 @Injectable()
-
 export class UserRepository extends Repository<User> {
   constructor(private dataSource: DataSource) {
     super(User, dataSource.createEntityManager());
@@ -23,8 +22,8 @@ export class UserRepository extends Repository<User> {
       .where('u.role = :role', { role: 'ORGANIZER' })
       .andWhere('u.isDeleted = :isDeleted', { isDeleted: false })
       .andWhere(
-        '(LOWER(u.email) LIKE LOWER(:keyword) OR LOWER(CONCAT(u.firstName, \' \', u.lastName)) LIKE LOWER(:keyword))',
-        { keyword: `%${keyword}%` }
+        "(LOWER(u.email) LIKE LOWER(:keyword) OR LOWER(CONCAT(u.firstName, ' ', u.lastName)) LIKE LOWER(:keyword))",
+        { keyword: `%${keyword}%` },
       );
 
     return queryBuilder.getCount();
@@ -40,11 +39,13 @@ export class UserRepository extends Repository<User> {
     });
   }
 
-  async findOrganizerInGeneral(tournamentId: number): Promise<OrganizerInGeneralDto[]> {
+  async findOrganizerInGeneral(
+    tournamentId: number,
+  ): Promise<OrganizerInGeneralDto[]> {
     const queryBuilder = this.createQueryBuilder('u')
       .select([
         'u.id as id',
-        'CONCAT(u.firstName, \' \', u.lastName) as fullName',
+        "CONCAT(u.firstName, ' ', u.lastName) as fullName",
         'u.email as email',
       ])
       .innerJoin('organizer_tournaments', 'ot', 'u.id = ot.user_id')
@@ -52,33 +53,35 @@ export class UserRepository extends Repository<User> {
       .andWhere('u.isDeleted = :isDeleted', { isDeleted: false });
 
     const results = await queryBuilder.getRawMany();
-    return results.map(r => new OrganizerInGeneralDto(r.id, r.fullName, r.email));
+    return results.map(
+      (r) => new OrganizerInGeneralDto(r.id, r.fullName, r.email),
+    );
   }
 
   async findUserByTournamentId(tournamentId: number): Promise<UserDto[]> {
     const queryBuilder = this.createQueryBuilder('u')
-      .select([
-        'u.id',
-        'u.firstName',
-        'u.lastName',
-        'u.email',
-        'u.role',
-      ])
+      .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.role'])
       .innerJoin('organizer_tournaments', 'ot', 'u.id = ot.user_id')
       .where('ot.tournament_id = :tournamentId', { tournamentId })
       .andWhere('u.isDeleted = :isDeleted', { isDeleted: false });
 
     const users = await queryBuilder.getMany();
-    return users.map(u => new UserDto({
-        id: u.id,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        email: u.email,
-        role: u.role,
-      }));      
+    return users.map(
+      (u) =>
+        new UserDto({
+          id: u.id,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          email: u.email,
+          role: u.role,
+        }),
+    );
   }
 
-  async isOrganizerOfTournament(userId: number, tournamentId: number): Promise<User | undefined> {
+  async isOrganizerOfTournament(
+    userId: number,
+    tournamentId: number,
+  ): Promise<User | undefined> {
     return this.createQueryBuilder('u')
       .innerJoin('organizer_tournaments', 'ot', 'u.id = ot.user_id')
       .where('ot.tournament_id = :tournamentId', { tournamentId })

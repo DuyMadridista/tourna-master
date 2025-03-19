@@ -12,10 +12,16 @@ export class MatchUtils {
   constructor(private readonly teamService: TeamService) {}
 
   numberMatchTimes(schedule: Map<EventDate, Array<Array<LocalTime>>>): number {
-    return Array.from(schedule.values()).reduce((acc, times) => acc + times.length, 0);
+    return Array.from(schedule.values()).reduce(
+      (acc, times) => acc + times.length,
+      0,
+    );
   }
 
-  compareNumMatchAndNumMatchTime(numMatch: number, numMatchTime: number): boolean {
+  compareNumMatchAndNumMatchTime(
+    numMatch: number,
+    numMatchTime: number,
+  ): boolean {
     return numMatchTime >= numMatch;
   }
 
@@ -35,14 +41,19 @@ export class MatchUtils {
     return matchDTO;
   }
 
-  async createGeneration(eventDate: EventDate | null, matchDTOs: MatchDto[]): Promise<GenerationDto> {
+  async createGeneration(
+    eventDate: EventDate | null,
+    matchDTOs: MatchDto[],
+  ): Promise<GenerationDto> {
     const generationDTO = new GenerationDto();
     if (eventDate) {
       generationDTO.eventDateId = eventDate.id;
       generationDTO.date = eventDate.date;
       generationDTO.startTime = eventDate.startTime;
       generationDTO.endTime = eventDate.endTime;
-      generationDTO.matches = matchDTOs.filter(match => match.eventDateId === eventDate.id);
+      generationDTO.matches = matchDTOs.filter(
+        (match) => match.eventDateId === eventDate.id,
+      );
     }
     return generationDTO;
   }
@@ -54,14 +65,20 @@ export class MatchUtils {
   ): Map<EventDate, number> {
     const numberOfTimeEachEvent = new Map<EventDate, number>();
     const endDate = LocalTime.of(23, 59, 59);
-  
+
     for (const eventDate of eventDates) {
       let startMatch = eventDate.startTime;
       let endMatch = startMatch.plusMinutes(duration);
-      const thisEventDate = LocalDateTime.of(LocalDate.parse(eventDate.date.toString()), endDate);
-      let checkDateTime = LocalDateTime.of(LocalDate.parse(eventDate.date.toString()), startMatch);
+      const thisEventDate = LocalDateTime.of(
+        LocalDate.parse(eventDate.date.toString()),
+        endDate,
+      );
+      let checkDateTime = LocalDateTime.of(
+        LocalDate.parse(eventDate.date.toString()),
+        startMatch,
+      );
       let countTime = 0;
-  
+
       while (
         startMatch.isBefore(eventDate.endTime) &&
         endMatch.isBefore(eventDate.endTime) &&
@@ -72,26 +89,27 @@ export class MatchUtils {
         endMatch = startMatch.plusMinutes(duration);
         checkDateTime = checkDateTime.plusMinutes(betweenTime + duration);
       }
-  
+
       numberOfTimeEachEvent.set(eventDate, countTime);
     }
-  
+
     const sortedEntries = [...numberOfTimeEachEvent.entries()].sort((a, b) => {
       const dateA = LocalDate.parse(a[0].date.toString());
       const dateB = LocalDate.parse(b[0].date.toString());
       return dateA.compareTo(dateB);
     });
-    
+
     return new Map(sortedEntries);
-    
   }
 
   async convertMatchListToMatchDtoList(matches: Match[]): Promise<MatchDto[]> {
-    return Promise.all(matches.map(match => this.convertMatchToMatchDTO(match)));
+    return Promise.all(
+      matches.map((match) => this.convertMatchToMatchDTO(match)),
+    );
   }
 
   async convertMatchToMatchDto(matches: Match[]): Promise<MatchDto[]> {
     const matchDtos = await this.convertMatchListToMatchDtoList(matches);
-    return matchDtos.sort((a, b) => a.startTime.compareTo( b.startTime));
+    return matchDtos.sort((a, b) => a.startTime.compareTo(b.startTime));
   }
 }

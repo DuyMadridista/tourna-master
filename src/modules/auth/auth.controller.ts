@@ -9,13 +9,16 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  @ApiBody({ type: LoginDto }) 
-  async login(@Body() loginDto:LoginDto) {
-    const user = await this.authService.validateUser(loginDto.email, loginDto.password);
+  @ApiBody({ type: LoginDto })
+  async login(@Body() loginDto: LoginDto) {
+    const user = await this.authService.validateUser(
+      loginDto.email,
+      loginDto.password,
+    );
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
     const res = await this.authService.login(user);
-    return SuccessResponse(true, 1, res,"");
+    return SuccessResponse(true, 1, res, '');
   }
 }

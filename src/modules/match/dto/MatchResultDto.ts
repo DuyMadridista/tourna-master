@@ -1,5 +1,11 @@
-import { IsInt, IsString, IsOptional, IsEnum, IsDateString } from 'class-validator';
-import { TypeMatch } from 'src/enums/match-type.enum';  
+import {
+  IsInt,
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+} from 'class-validator';
+import { TypeMatch } from 'src/enums/match-type.enum';
 
 export class MatchResultDto {
   @IsInt()

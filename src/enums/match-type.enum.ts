@@ -1,5 +1,4 @@
 export enum TypeMatch {
-    EVENT = 'EVENT',
-    MATCH = 'MATCH',
-  }
-  
+  EVENT = 'EVENT',
+  MATCH = 'MATCH',
+}

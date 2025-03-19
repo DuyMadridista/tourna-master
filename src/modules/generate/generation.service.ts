@@ -32,58 +32,102 @@ export class GenerationService {
     // // delete all matches of tournament before generate
     await this.matchService.deleteAllMatchByTournamentId(tournamentId);
     const matches = await this.matchService.matchList(tournamentId);
-    const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
-    const tournament = await this.tournamentService.findTournamentById(tournamentId);
+    const eventDates =
+      await this.eventDateService.findAllByTournamentId(tournamentId);
+    const tournament =
+      await this.tournamentService.findTournamentById(tournamentId);
 
     if (!tournament) throw new BadRequestException('Tournament not found');
-    if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
-      throw new BadRequestException('Cannot generate schedule for this tournament');
+    if (
+      !TournamentStatusPermission.allowGenerateStatus.includes(
+        tournament.status,
+      )
+    ) {
+      throw new BadRequestException(
+        'Cannot generate schedule for this tournament',
+      );
     }
 
     if (duration) tournament.matchDuration = duration;
     if (betweenTime) tournament.timeBetween = betweenTime;
     tournament.startTimeDefault = startTime.toString();
     tournament.endTimeDefault = endTime.toString();
-    tournament.status = tournament.status === TournamentStatus.NEED_INFORMATION ? TournamentStatus.READY : tournament.status;
+    tournament.status =
+      tournament.status === TournamentStatus.NEED_INFORMATION
+        ? TournamentStatus.READY
+        : tournament.status;
 
     await this.tournamentService.save(tournament);
 
-    if (!eventDates.length) throw new BadRequestException('Event date is empty, please add them');
+    if (!eventDates.length)
+      throw new BadRequestException('Event date is empty, please add them');
 
-    eventDates.forEach(date => {
+    eventDates.forEach((date) => {
       if (startTime) date.startTime = startTime;
       if (endTime) date.endTime = endTime;
     });
     await this.eventDateService.saveAll(eventDates);
 
-    const timeSheetMatches = await this.matchService.timeSheetMatches(duration, betweenTime, matches.length, eventDates);
+    const timeSheetMatches = await this.matchService.timeSheetMatches(
+      duration,
+      betweenTime,
+      matches.length,
+      eventDates,
+    );
     let matchList: MatchDto[] = [];
     let warningMessage = '';
 
-    if (!this.matchUtils.compareNumMatchAndNumMatchTime(matches.length, this.matchUtils.numberMatchTimes(timeSheetMatches))) {
+    if (
+      !this.matchUtils.compareNumMatchAndNumMatchTime(
+        matches.length,
+        this.matchUtils.numberMatchTimes(timeSheetMatches),
+      )
+    ) {
       const extendedEndTime = LocalTime.of(23, 59, 59);
-      eventDates.forEach(ed => ed.endTime = extendedEndTime);
-      const newTimeSheetMatches = await this.matchService.timeSheetMatches(duration, betweenTime, matches.length, eventDates);
+      eventDates.forEach((ed) => (ed.endTime = extendedEndTime));
+      const newTimeSheetMatches = await this.matchService.timeSheetMatches(
+        duration,
+        betweenTime,
+        matches.length,
+        eventDates,
+      );
 
-
-      if (!this.matchUtils.compareNumMatchAndNumMatchTime(matches.length, this.matchUtils.numberMatchTimes(newTimeSheetMatches))) {
-        throw new BadRequestException('Time of event date is not enough for all matches');
+      if (
+        !this.matchUtils.compareNumMatchAndNumMatchTime(
+          matches.length,
+          this.matchUtils.numberMatchTimes(newTimeSheetMatches),
+        )
+      ) {
+        throw new BadRequestException(
+          'Time of event date is not enough for all matches',
+        );
       }
-      matchList = await this.matchService.mappingMatchAndTime(matches, newTimeSheetMatches, duration);
-      warningMessage = 'The total duration of matches exceeds the time frame. Recommendation: extend event_date time.';
+      matchList = await this.matchService.mappingMatchAndTime(
+        matches,
+        newTimeSheetMatches,
+        duration,
+      );
+      warningMessage =
+        'The total duration of matches exceeds the time frame. Recommendation: extend event_date time.';
     } else {
-      matchList = await this.matchService.mappingMatchAndTime(matches, timeSheetMatches, duration);
+      matchList = await this.matchService.mappingMatchAndTime(
+        matches,
+        timeSheetMatches,
+        duration,
+      );
     }
 
     eventDates.sort((a, b) =>
-      LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
+      LocalDate.parse(a.date.toString()).compareTo(
+        LocalDate.parse(b.date.toString()),
+      ),
     );
     const generations: GenerationDto[] = await Promise.all(
-        eventDates.map(eventDate =>
-          this.matchUtils.createGeneration(eventDate, matchList)
-        )
-      );
-    const response =  SuccessResponse(true, generations.length, generations);
+      eventDates.map((eventDate) =>
+        this.matchUtils.createGeneration(eventDate, matchList),
+      ),
+    );
+    const response = SuccessResponse(true, generations.length, generations);
     if (warningMessage) response.additionalData({ warningMessage });
     return response;
   }
@@ -96,18 +140,25 @@ export class GenerationService {
     const generations: GenerationDto[] = [];
 
     const oldMatch = await this.matchService.getMatchById(matchId);
-    const matchOfNewTime = await this.matchService.getMatchById(newPositionMatchId);
-    const clonedMatch =structuredClone(oldMatch);
+    const matchOfNewTime =
+      await this.matchService.getMatchById(newPositionMatchId);
+    const clonedMatch = structuredClone(oldMatch);
 
-    const oldEventDate = await this.eventDateService.findByEventDateId(oldMatch.eventDate.id);
-    const newEventDate = await this.eventDateService.findByEventDateId(eventDateIdSelected);
+    const oldEventDate = await this.eventDateService.findByEventDateId(
+      oldMatch.eventDate.id,
+    );
+    const newEventDate =
+      await this.eventDateService.findByEventDateId(eventDateIdSelected);
 
     if (newEventDate.date.isBefore(LocalDate.now())) {
       throw new BadRequestException('Cannot switch to a date in the past.');
     }
 
-    const matchesOfNewEventDate = await this.matchService.getMatchByEventDateId(eventDateIdSelected);
-    const indexOfNewTime = matchOfNewTime ? matchesOfNewEventDate.findIndex(m => m.id === matchOfNewTime.id) : null;
+    const matchesOfNewEventDate =
+      await this.matchService.getMatchByEventDateId(eventDateIdSelected);
+    const indexOfNewTime = matchOfNewTime
+      ? matchesOfNewEventDate.findIndex((m) => m.id === matchOfNewTime.id)
+      : null;
 
     if (matchOfNewTime) {
       clonedMatch.startTime = matchOfNewTime.startTime;
@@ -115,42 +166,86 @@ export class GenerationService {
       clonedMatch.eventDate.id = eventDateIdSelected;
     }
 
-    const tournament = await this.tournamentService.findTournamentById(newEventDate.tournament.id);
+    const tournament = await this.tournamentService.findTournamentById(
+      newEventDate.tournament.id,
+    );
     const betweenTime = tournament.timeBetween;
     const duration = tournament.matchDuration;
     const startTime = newEventDate.startTime;
     let matchesUpdated: Match[][] = [];
 
     if (oldMatch.eventDate.id === eventDateIdSelected) {
-      const updated = await this.updateInDate(clonedMatch, duration, betweenTime, matchesOfNewEventDate, oldMatch, indexOfNewTime, matchOfNewTime);
+      const updated = await this.updateInDate(
+        clonedMatch,
+        duration,
+        betweenTime,
+        matchesOfNewEventDate,
+        oldMatch,
+        indexOfNewTime,
+        matchOfNewTime,
+      );
       await this.matchService.saveAll(updated);
     } else {
-      matchesUpdated = await this.updateTwoDifferentDays(clonedMatch, duration, betweenTime, matchesOfNewEventDate, oldMatch, indexOfNewTime, matchOfNewTime, startTime, eventDateIdSelected);
+      matchesUpdated = await this.updateTwoDifferentDays(
+        clonedMatch,
+        duration,
+        betweenTime,
+        matchesOfNewEventDate,
+        oldMatch,
+        indexOfNewTime,
+        matchOfNewTime,
+        startTime,
+        eventDateIdSelected,
+      );
       await this.matchService.saveAll(matchesUpdated[1]);
-      const oldEventMatchDTOs = await this.matchUtils.convertMatchListToMatchDtoList(await this.matchService.getMatchByEventDateId(oldEventDate.id));
-      generations.push( await this.matchUtils.createGeneration(oldEventDate, oldEventMatchDTOs));
+      const oldEventMatchDTOs =
+        await this.matchUtils.convertMatchListToMatchDtoList(
+          await this.matchService.getMatchByEventDateId(oldEventDate.id),
+        );
+      generations.push(
+        await this.matchUtils.createGeneration(oldEventDate, oldEventMatchDTOs),
+      );
       await this.matchService.saveAll(matchesUpdated[0]);
     }
 
-    const newEventMatchDTOs = await this.matchUtils.convertMatchListToMatchDtoList(await this.matchService.getMatchByEventDateId(eventDateIdSelected));
-    generations.push( await this.matchUtils.createGeneration(newEventDate, newEventMatchDTOs));
+    const newEventMatchDTOs =
+      await this.matchUtils.convertMatchListToMatchDtoList(
+        await this.matchService.getMatchByEventDateId(eventDateIdSelected),
+      );
+    generations.push(
+      await this.matchUtils.createGeneration(newEventDate, newEventMatchDTOs),
+    );
 
     return generations;
   }
 
-  async getAllGeneration(tournamentId: number): Promise<SuccessResponseDto<GenerationDto[]>> {
-    const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
+  async getAllGeneration(
+    tournamentId: number,
+  ): Promise<SuccessResponseDto<GenerationDto[]>> {
+    const eventDates =
+      await this.eventDateService.findAllByTournamentId(tournamentId);
     const generations: GenerationDto[] = [];
     eventDates.sort((a, b) =>
-      LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
+      LocalDate.parse(a.date.toString()).compareTo(
+        LocalDate.parse(b.date.toString()),
+      ),
     );
     for (const eventDate of eventDates) {
-      const matches =await this.matchUtils.convertMatchListToMatchDtoList(await this.matchService.getMatchByEventDateId(eventDate.id));
-      generations.push(await this.matchUtils.createGeneration(eventDate, matches));
+      const matches = await this.matchUtils.convertMatchListToMatchDtoList(
+        await this.matchService.getMatchByEventDateId(eventDate.id),
+      );
+      generations.push(
+        await this.matchUtils.createGeneration(eventDate, matches),
+      );
     }
 
-    const SuccessResponseDto = SuccessResponse(true, generations.length, generations);
-    const duplicateMatches = await this.matchService.findAllDuplicateMatchByTournamentId(tournamentId);
+    const SuccessResponseDto = SuccessResponse(
+      true,
+      generations.length,
+      generations,
+    );
+    const duplicateMatches =
+      await this.matchService.findAllDuplicateMatchByTournamentId(tournamentId);
     const additionalData: Record<string, any> = {};
 
     if (duplicateMatches.length > 1) {
@@ -195,9 +290,14 @@ export class GenerationService {
     let warningMessage = '';
 
     for (const eventDate of eventDates) {
-      const matches = await this.matchService.getMatchByEventDateId(eventDate.id);
+      const matches = await this.matchService.getMatchByEventDateId(
+        eventDate.id,
+      );
       for (const match of matches) {
-        if (match.startTime.isAfter( eventDate.endTime) || match.endTime .isAfter( eventDate.endTime)) {
+        if (
+          match.startTime.isAfter(eventDate.endTime) ||
+          match.endTime.isAfter(eventDate.endTime)
+        ) {
           warningMessage = 'Time of event date is not enough for all matches';
           eventDateId.push(eventDate.id);
           break;
@@ -219,23 +319,26 @@ export class GenerationService {
     matchesOfNewEventDate: Match[],
     oldMatch: Match,
     indexOfNewTime: number,
-    matchOfNewTime: Match
+    matchOfNewTime: Match,
   ): Promise<Match[]> {
     let endTime: LocalTime;
     let matchesNew: Match[] = [];
-  
-    const indexOfOldMatch = matchesOfNewEventDate.findIndex(m => m.id === oldMatch.id);
+
+    const indexOfOldMatch = matchesOfNewEventDate.findIndex(
+      (m) => m.id === oldMatch.id,
+    );
     matchesOfNewEventDate.splice(indexOfOldMatch, 1); // remove oldMatch
-  
+
     if (indexOfOldMatch < indexOfNewTime) {
       endTime = oldMatch.startTime.minusMinutes(betweenTime);
       matchesNew = this.updateTime(
         endTime,
         betweenTime,
         duration,
-        matchesOfNewEventDate.slice(indexOfOldMatch, indexOfNewTime).length + indexOfOldMatch,
+        matchesOfNewEventDate.slice(indexOfOldMatch, indexOfNewTime).length +
+          indexOfOldMatch,
         matchesOfNewEventDate,
-        indexOfOldMatch
+        indexOfOldMatch,
       );
     } else if (indexOfNewTime < indexOfOldMatch) {
       endTime = matchOfNewTime.endTime;
@@ -243,17 +346,18 @@ export class GenerationService {
         endTime,
         betweenTime,
         duration,
-        matchesOfNewEventDate.slice(indexOfNewTime, indexOfOldMatch).length + indexOfNewTime,
+        matchesOfNewEventDate.slice(indexOfNewTime, indexOfOldMatch).length +
+          indexOfNewTime,
         matchesOfNewEventDate,
-        indexOfNewTime
+        indexOfNewTime,
       );
     }
-  
+
     matchesNew.splice(indexOfNewTime, 0, match);
     return matchesNew;
   }
-  
-  async  updateTwoDifferentDays(
+
+  async updateTwoDifferentDays(
     match: Match,
     duration: number,
     betweenTime: number,
@@ -262,19 +366,23 @@ export class GenerationService {
     indexOfNewTime: number,
     matchOfNewTime: Match | null,
     startTime: LocalTime,
-    eventDateIdSelected: number
+    eventDateIdSelected: number,
   ): Promise<Match[][]> {
-    const matchesOfOldEventDate = await this.matchService.getMatchByEventDateId(oldMatch.eventDate.id);
-  
+    const matchesOfOldEventDate = await this.matchService.getMatchByEventDateId(
+      oldMatch.eventDate.id,
+    );
+
     const matchesNewEventDateSize = matchesOfNewEventDate.length;
     const matchesOldEventDateSize = matchesOfOldEventDate.length;
-  
+
     let matchesNew: Match[] = [];
     let matchesOld: Match[];
     const matchesUpdated: Match[][] = [];
-  
-    const indexOfOldTime = matchesOfOldEventDate.findIndex(m => m.id === oldMatch.id);
-  
+
+    const indexOfOldTime = matchesOfOldEventDate.findIndex(
+      (m) => m.id === oldMatch.id,
+    );
+
     // Update matches in new event date
     if (!matchOfNewTime) {
       if (matchesNewEventDateSize === 0) {
@@ -283,10 +391,14 @@ export class GenerationService {
         match.eventDate.id = eventDateIdSelected;
         matchesNew.push(match);
       } else {
-        const newStartTime = matchesOfNewEventDate[matchesNewEventDateSize - 1].endTime.plusMinutes(betweenTime);
+        const newStartTime =
+          matchesOfNewEventDate[
+            matchesNewEventDateSize - 1
+          ].endTime.plusMinutes(betweenTime);
         match.startTime = newStartTime;
         match.endTime = newStartTime.plusMinutes(duration);
-        match.eventDate.id = matchesOfNewEventDate[matchesNewEventDateSize - 1].eventDate.id;
+        match.eventDate.id =
+          matchesOfNewEventDate[matchesNewEventDateSize - 1].eventDate.id;
         matchesNew = [...matchesOfNewEventDate, match];
       }
     } else {
@@ -296,11 +408,11 @@ export class GenerationService {
         duration,
         matchesNewEventDateSize,
         matchesOfNewEventDate,
-        indexOfNewTime
+        indexOfNewTime,
       );
       matchesNew.splice(indexOfNewTime, 0, match);
     }
-  
+
     matchesOfOldEventDate.splice(indexOfOldTime, 1);
     const endTime = oldMatch.startTime.minusMinutes(betweenTime);
     matchesOld = this.updateTime(
@@ -309,13 +421,12 @@ export class GenerationService {
       duration,
       matchesOldEventDateSize - 1,
       matchesOfOldEventDate,
-      indexOfOldTime
+      indexOfOldTime,
     );
-  
+
     matchesUpdated[0] = matchesNew;
     matchesUpdated[1] = matchesOld;
-  
+
     return matchesUpdated;
   }
-  
 }

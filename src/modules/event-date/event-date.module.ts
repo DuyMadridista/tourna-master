@@ -12,10 +12,14 @@ import { TournamentRepository } from '../tournament/tournament.repository';
 import { MatchRepository } from '../match/match.repository';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventDate, Match, Tournament])], 
+  imports: [TypeOrmModule.forFeature([EventDate, Match, Tournament])],
   controllers: [EventDateController],
-  providers: [EventDateService,TournamentRepository, EventDateRepository, MatchRepository],
-  exports: [EventDateService], 
+  providers: [
+    EventDateService,
+    TournamentRepository,
+    EventDateRepository,
+    MatchRepository,
+  ],
+  exports: [EventDateService],
 })
 export class EventDateModule {}
-

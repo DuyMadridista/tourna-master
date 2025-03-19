@@ -10,11 +10,10 @@ export class DateValidatorUtils {
   static isBeforeToday(inputDate: Date | string): boolean {
     const date = new Date(inputDate);
     const today = new Date();
-  
+
     // So sánh YYYY-MM-DD bằng timestamp
     return date.setHours(0, 0, 0, 0) < today.setHours(0, 0, 0, 0);
   }
-  
 
   /**
    * Kiểm tra xem ngày được cung cấp có sau ngày hôm nay hay không

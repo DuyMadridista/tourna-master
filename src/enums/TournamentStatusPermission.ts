@@ -5,8 +5,13 @@ export class TournamentStatusPermission {
   static readonly notAllowed: TournamentStatus[] = [TournamentStatus.DELETED];
 
   // Trạng thái cơ bản được phép (loại bỏ những trạng thái không được phép)
-  static readonly allowedBasic: TournamentStatus[] = Object.values(TournamentStatus).filter(
-    (status) => !TournamentStatusPermission.notAllowed.includes(status as TournamentStatus),
+  static readonly allowedBasic: TournamentStatus[] = Object.values(
+    TournamentStatus,
+  ).filter(
+    (status) =>
+      !TournamentStatusPermission.notAllowed.includes(
+        status as TournamentStatus,
+      ),
   ) as TournamentStatus[];
 
   // Trạng thái nâng cao được phép
@@ -17,7 +22,9 @@ export class TournamentStatusPermission {
   ];
 
   // Trạng thái được phép reset toàn bộ ngày sự kiện
-  static readonly allowedResetAllEventDate: TournamentStatus[] = [TournamentStatus.NEED_INFORMATION];
+  static readonly allowedResetAllEventDate: TournamentStatus[] = [
+    TournamentStatus.NEED_INFORMATION,
+  ];
 
   // Trạng thái được phép để tạo mới
   static readonly allowGenerateStatus: TournamentStatus[] = [

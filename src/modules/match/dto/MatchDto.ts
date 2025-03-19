@@ -1,7 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { TypeMatch } from 'src/enums/match-type.enum';
-import { Team } from '../../team/entities/team.entity'; 
+import { Team } from '../../team/entities/team.entity';
 import { LocalTime } from '@js-joda/core';
 export class MatchDto {
   id: number;

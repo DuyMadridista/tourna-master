@@ -1,4 +1,3 @@
-
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SuccessResponseDto<T> {
@@ -17,9 +16,16 @@ export class SuccessResponseDto<T> {
   data: T;
 
   @ApiProperty()
-  additionalData? : any;
+  additionalData?: any;
 
-  constructor(statusCode: number,success: boolean, total: number,  data: T, message: string,  additionalData?: any) {
+  constructor(
+    statusCode: number,
+    success: boolean,
+    total: number,
+    data: T,
+    message: string,
+    additionalData?: any,
+  ) {
     this.success = success;
     this.total = total;
     this.statusCode = statusCode;

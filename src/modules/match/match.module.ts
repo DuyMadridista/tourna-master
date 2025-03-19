@@ -13,12 +13,19 @@ import { MatchRepository } from './match.repository';
 import { TournamentRepository } from '../tournament/tournament.repository';
 
 @Module({
-    imports: [
-      TypeOrmModule.forFeature([Match,Team, Tournament]), 
-      forwardRef(() => TeamModule) ,
-      forwardRef(() => EventDateModule)    ], 
+  imports: [
+    TypeOrmModule.forFeature([Match, Team, Tournament]),
+    forwardRef(() => TeamModule),
+    forwardRef(() => EventDateModule),
+  ],
   controllers: [MatchController],
-  providers: [MatchService,MatchUtils,TeamRepository, MatchRepository, TournamentRepository],
-  exports: [MatchService]
+  providers: [
+    MatchService,
+    MatchUtils,
+    TeamRepository,
+    MatchRepository,
+    TournamentRepository,
+  ],
+  exports: [MatchService],
 })
 export class MatchModule {}

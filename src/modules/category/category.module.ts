@@ -7,11 +7,11 @@ import { Category } from './entities/category.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Category]), 
-    forwardRef(() => TournamentModule) 
-  ], 
+    TypeOrmModule.forFeature([Category]),
+    forwardRef(() => TournamentModule),
+  ],
   controllers: [CategoryController],
   providers: [CategoryService],
-  exports: [CategoryService], 
+  exports: [CategoryService],
 })
 export class CategoryModule {}

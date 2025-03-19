@@ -14,11 +14,18 @@ import { CurrentUserProvider } from 'src/helper/current-user.provider';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tournament]),AuthModule, UserModule,  forwardRef(() => TeamModule),  forwardRef(() => EventDateModule), forwardRef(() => CategoryModule), forwardRef(() => MatchModule), forwardRef(() => PlayerModule)],
+  imports: [
+    TypeOrmModule.forFeature([Tournament]),
+    AuthModule,
+    UserModule,
+    forwardRef(() => TeamModule),
+    forwardRef(() => EventDateModule),
+    forwardRef(() => CategoryModule),
+    forwardRef(() => MatchModule),
+    forwardRef(() => PlayerModule),
+  ],
   controllers: [TournamentController],
-  providers: [TournamentService,TournamentRepository, CurrentUserProvider],
+  providers: [TournamentService, TournamentRepository, CurrentUserProvider],
   exports: [TournamentService, TournamentRepository],
 })
 export class TournamentModule {}
-
-

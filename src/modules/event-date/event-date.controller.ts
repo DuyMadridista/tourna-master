@@ -15,6 +15,11 @@ export class EventDateController {
     @Body() updateTimeDto: UpdateTimeDto,
   ): Promise<SuccessResponseDto<EventDate>> {
     const { startTime, endTime } = updateTimeDto;
-    return this.eventDateService.updateStartTimeAndEndTime(tournamentId, eventDateId, startTime, endTime);
+    return this.eventDateService.updateStartTimeAndEndTime(
+      tournamentId,
+      eventDateId,
+      startTime,
+      endTime,
+    );
   }
 }

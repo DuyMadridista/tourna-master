@@ -14,7 +14,11 @@ export class CategoryRepository extends Repository<Category> {
     });
   }
 
-  async findCategoriesByName(keyword: string, skip: number, take: number): Promise<Category[]> {
+  async findCategoriesByName(
+    keyword: string,
+    skip: number,
+    take: number,
+  ): Promise<Category[]> {
     return this.find({
       where: { categoryName: ILike(`%${keyword}%`), isDeleted: false },
       order: { categoryName: 'ASC' },
@@ -23,8 +27,12 @@ export class CategoryRepository extends Repository<Category> {
     });
   }
 
-  async findCategoryByName(categoryName: string): Promise<Category | undefined> {
-    return this.findOne({ where: { categoryName: ILike(categoryName), isDeleted: false } });
+  async findCategoryByName(
+    categoryName: string,
+  ): Promise<Category | undefined> {
+    return this.findOne({
+      where: { categoryName: ILike(categoryName), isDeleted: false },
+    });
   }
 
   async findCategoryById(id: number): Promise<Category | undefined> {
@@ -32,6 +40,9 @@ export class CategoryRepository extends Repository<Category> {
   }
 
   async getAllCategories(): Promise<Category[]> {
-    return this.find({ where: { isDeleted: false }, order: { categoryName: 'ASC' } });
+    return this.find({
+      where: { isDeleted: false },
+      order: { categoryName: 'ASC' },
+    });
   }
 }

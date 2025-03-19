@@ -26,10 +26,10 @@ export class MatchOfLeaderBoardDto {
   date: string;
 
   @IsString()
-  startTime: string; 
+  startTime: string;
 
   @IsString()
-  endTime: string; 
+  endTime: string;
 
   @IsOptional()
   @IsInt()

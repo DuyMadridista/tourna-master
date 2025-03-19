@@ -18,7 +18,7 @@ export class TeamRepository extends Repository<Team> {
       .addSelect('team.teamName', 'teamName')
       .addSelect('COUNT(player.playerId)', 'playerCount')
       .leftJoin('player', 'player', 'team.teamId = player.team_id')
-      .where('team.tournamentId = :tournamentId', { tournamentId })
+      .where('team.tournament_id = :tournamentId', { tournamentId })
       .groupBy('team.teamId, team.teamName')
       .orderBy('team.createdAt', 'DESC')
       .offset(page * size)
@@ -28,7 +28,7 @@ export class TeamRepository extends Repository<Team> {
 
   async getTotalRecordsForTournament(tournamentId: number): Promise<number> {
     return this.createQueryBuilder('team')
-      .where('team.tournamentId = :tournamentId', { tournamentId })
+      .where('team.tournament_id = :tournamentId', { tournamentId })
       .getCount();
   }
 
@@ -39,21 +39,30 @@ export class TeamRepository extends Repository<Team> {
       .then((result) => result.map((item) => item.teamId));
   }
 
-  async findTeamsByName(tournamentId: number, keyword: string): Promise<Team[]> {
+  async findTeamsByName(
+    tournamentId: number,
+    keyword: string,
+  ): Promise<Team[]> {
     return this.createQueryBuilder('team')
       .where('team.teamName = :keyword', { keyword })
-      .andWhere('team.tournamentId = :tournamentId', { tournamentId })
+      .andWhere('team.tournament_id = :tournamentId', { tournamentId })
       .getMany();
   }
 
-  async findTeamById(tournamentId: number, teamId: number): Promise<Team | null> {
+  async findTeamById(
+    tournamentId: number,
+    teamId: number,
+  ): Promise<Team | null> {
     return this.createQueryBuilder('team')
-      .where('team.tournamentId = :tournamentId', { tournamentId })
+      .where('team.tournament_id = :tournamentId', { tournamentId })
       .andWhere('team.teamId = :teamId', { teamId })
       .getOne();
   }
 
-  async deleteByTournamentIdAndTeamId(tournamentId: number, teamId: number): Promise<void> {
+  async deleteByTournamentIdAndTeamId(
+    tournamentId: number,
+    teamId: number,
+  ): Promise<void> {
     await this.createQueryBuilder()
       .delete()
       .from(Team)
@@ -64,7 +73,7 @@ export class TeamRepository extends Repository<Team> {
 
   async findTeamByTournamentId(tournamentId: number): Promise<Team[]> {
     return this.createQueryBuilder('team')
-      .where('team.tournamentId = :tournamentId', { tournamentId })
+      .where('team.tournament_id = :tournamentId', { tournamentId })
       .getMany();
   }
 

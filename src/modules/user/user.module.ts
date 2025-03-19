@@ -7,13 +7,19 @@ import { CommonValidationService } from 'src/helper/common-validation';
 import { User } from './entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserRepository]), TypeOrmModule.forFeature([User])],
+  imports: [
+    TypeOrmModule.forFeature([UserRepository]),
+    TypeOrmModule.forFeature([User]),
+  ],
   controllers: [UserController],
-  providers: [UserService, CommonValidationService,    
+  providers: [
+    UserService,
+    CommonValidationService,
     {
-    provide: UserRepository, 
-    useClass: UserRepository,
-  },],
+      provide: UserRepository,
+      useClass: UserRepository,
+    },
+  ],
   exports: [UserService],
 })
 export class UserModule {}

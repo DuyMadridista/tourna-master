@@ -20,7 +20,7 @@ import { GenerationModule } from './modules/generate/generation.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [typeormConfig], 
+      load: [typeormConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -28,11 +28,24 @@ import { GenerationModule } from './modules/generate/generation.module';
       useFactory: (configService: ConfigService) => ({
         ...configService.get('typeorm'),
       }),
-    }),AuthModule,UserModule, TournamentModule, TeamModule, PlayerModule, MatchModule, EventDateModule, CategoryModule, GenerationModule],
+    }),
+    AuthModule,
+    UserModule,
+    TournamentModule,
+    TeamModule,
+    PlayerModule,
+    MatchModule,
+    EventDateModule,
+    CategoryModule,
+    GenerationModule,
+  ],
   controllers: [AppController],
-  providers: [ {
-    provide: APP_FILTER,
-    useClass: HttpExceptionFilter,
-  },AppService],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+    AppService,
+  ],
 })
 export class AppModule {}

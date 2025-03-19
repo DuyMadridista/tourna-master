@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Tournament } from './entities/tournament.entity';
@@ -12,57 +16,71 @@ import { UserService } from '../user/user.service';
 
 @Injectable()
 export class TournamentRepository extends Repository<Tournament> {
-  constructor(@InjectRepository(Tournament) private readonly repository: Repository<Tournament>) {
+  constructor(
+    @InjectRepository(Tournament)
+    private readonly repository: Repository<Tournament>,
+  ) {
     super(repository.target, repository.manager, repository.queryRunner);
   }
 
-    async findTournamentByIdAndNotDeleted(id: number): Promise<Tournament | null> {
-        return this.repository.findOne({
-            where: {
-                id,
-                isDeleted: false,
-            },
-        });
-    }
+  async findTournamentByIdAndNotDeleted(
+    id: number,
+  ): Promise<Tournament | null> {
+    return this.repository.findOne({
+      where: {
+        id,
+        isDeleted: false,
+      },
+    });
+  }
 
-    async findActiveTournamentById(tournamentId: number): Promise<Tournament | null> { 
-        return this.repository.findOne({
-            where: {
-                id: tournamentId,
-                isDeleted: false,
-                status: Not(In([TournamentStatus.DISCARDED, TournamentStatus.FINISHED])),
-            },
-        });
-    }
+  async findActiveTournamentById(
+    tournamentId: number,
+  ): Promise<Tournament | null> {
+    return this.repository.findOne({
+      where: {
+        id: tournamentId,
+        isDeleted: false,
+        status: Not(
+          In([TournamentStatus.DISCARDED, TournamentStatus.FINISHED]),
+        ),
+      },
+    });
+  }
 
-    async getPlanByTournamentId(tournamentId: number): Promise<TournamentPlanDto | null> {
-        const result = await this.repository
-            .createQueryBuilder('tournament')
-            .select([
-                'tournament.startTimeDefault',
-                'tournament.endTimeDefault',
-                'tournament.timeBetween',
-                'tournament.matchDuration',
-            ])
-            .where('tournament.id = :tournamentId', { tournamentId })
-            .andWhere('tournament.isDeleted = :isDeleted', { isDeleted: false })
-            .getOne();
+  async getPlanByTournamentId(
+    tournamentId: number,
+  ): Promise<TournamentPlanDto | null> {
+    const result = await this.repository
+      .createQueryBuilder('tournament')
+      .select([
+        'tournament.startTimeDefault',
+        'tournament.endTimeDefault',
+        'tournament.timeBetween',
+        'tournament.matchDuration',
+      ])
+      .where('tournament.id = :tournamentId', { tournamentId })
+      .andWhere('tournament.isDeleted = :isDeleted', { isDeleted: false })
+      .getOne();
 
-        return result ? new TournamentPlanDto(result) : null;
-    }
+    return result ? new TournamentPlanDto(result) : null;
+  }
 
-    async findTournamentReadyNeedToChangeToInProgress(): Promise<Tournament[]> {
-        return this.repository
-            .createQueryBuilder('tournament')
-            .innerJoin('tournament.eventDates', 'eventDate')
-            .where('eventDate.date <= NOW()')
-            .andWhere('tournament.status = :status', { status: TournamentStatus.READY })
-            .groupBy('tournament.id')
-            .getMany();
-    }
+  async findTournamentReadyNeedToChangeToInProgress(): Promise<Tournament[]> {
+    return this.repository
+      .createQueryBuilder('tournament')
+      .innerJoin('tournament.eventDates', 'eventDate')
+      .where('eventDate.date <= NOW()')
+      .andWhere('tournament.status = :status', {
+        status: TournamentStatus.READY,
+      })
+      .groupBy('tournament.id')
+      .getMany();
+  }
 
-    async findTournamentInProgressNeedToChangeToFinished(): Promise<any[]> {
-        return this.repository.query(`
+  async findTournamentInProgressNeedToChangeToFinished(): Promise<any[]> {
+    return this.repository.query(
+      `
             SELECT t.tournament_id, GREATEST(MAX(m.end_time), temp.end_   time) AS max_end_time, temp.date
             FROM tournament t
             JOIN (
@@ -79,11 +97,14 @@ export class TournamentRepository extends Repository<Tournament> {
             LEFT JOIN match m ON m.event_date_id = temp.EventDateId
             WHERE temp.date <= NOW()
             GROUP BY t.tournament_id, temp.end_time, temp.date
-        `, [TournamentStatus.IN_PROGRESS]);
-    }
+        `,
+      [TournamentStatus.IN_PROGRESS],
+    );
+  }
 
-    async findTournamentNeedInformationNeedToChangeToFinished(): Promise<any[]> {
-        return this.repository.query(`
+  async findTournamentNeedInformationNeedToChangeToFinished(): Promise<any[]> {
+    return this.repository.query(
+      `
             select temp.tournament_id, min(temp.date) date, temp.EventDateId firstEventDateId, temp.start_time
             from (
                 SELECT tournament_id, ranked.EventDateId, ranked.date, ranked.start_time
@@ -97,125 +118,128 @@ export class TournamentRepository extends Repository<Tournament> {
                 WHERE row_num = 1) as temp
             left join match m on m.event_date_id = temp.EventDateId
             group by temp.tournament_id, temp.EventDateId, temp.start_time
-            having count(m.id) = 0 and (min(temp.date) <= NOW() or (min(temp.date) = NOW() and temp.start_time < LOCALTIME))`
-        , [TournamentStatus.NEED_INFORMATION]);
+            having count(m.id) = 0 and (min(temp.date) <= NOW() or (min(temp.date) = NOW() and temp.start_time < LOCALTIME))`,
+      [TournamentStatus.NEED_INFORMATION],
+    );
+  }
+
+  async findTournamentByCategoryId(categoryId: number): Promise<Tournament[]> {
+    return this.repository.find({
+      where: {
+        category: { categoryId: categoryId },
+      },
+    });
+  }
+
+  async findTournamentByIdAndIsDeletedFalse(
+    id: number,
+  ): Promise<Tournament | null> {
+    return this.repository.findOne({
+      where: {
+        id,
+        isDeleted: false,
+      },
+    });
+  }
+  async findAllByUserId(
+    userId: number,
+    page: number,
+    pageSize: number,
+    sortType: 'ASC' | 'DESC',
+    field: string,
+    status: TournamentStatus,
+    search: string,
+    categoryId: number,
+  ): Promise<any> {
+    const queryBuilder = this.repository
+      .createQueryBuilder('tournament')
+      .select([
+        'tournament.id',
+        'tournament.title',
+        'category.categoryId',
+        'category.categoryName',
+        'tournament.createdAt',
+        'tournament.status',
+        'tournament.matchDuration',
+        'tournament.format',
+      ])
+      .addSelect(
+        (subQuery) =>
+          subQuery
+            .select('COUNT(DISTINCT ot.tournament_id)', 'total_records')
+            .from('organizer_tournaments', 'ot')
+            .where('tournament.isDeleted != true'),
+        'totalRecords',
+      )
+      .innerJoin('tournament.category', 'category')
+      .innerJoin('tournament.organizers', 'organizer')
+      .where('tournament.isDeleted = :isDeleted', { isDeleted: false });
+
+    if (userId) {
+      queryBuilder.andWhere('organizer.id = :userId', { userId });
     }
 
-    async findTournamentByCategoryId(categoryId: number): Promise<Tournament[]> {
-        return this.repository.find({
-            where: {
-                category: { categoryId: categoryId },
-            },
-        });
+    if (status) {
+      queryBuilder.andWhere('tournament.status = :status', { status });
     }
 
-    async findTournamentByIdAndIsDeletedFalse(id: number): Promise<Tournament | null> {
-        return this.repository.findOne({
-            where: {
-                id,
-                isDeleted: false,
-            },
-        });
+    if (search) {
+      queryBuilder.andWhere('LOWER(tournament.title) LIKE :search', {
+        search: `%${search.toLowerCase()}%`,
+      });
     }
-    async findAllByUserId(
-        userId: number,
-        page: number,
-        pageSize: number,
-        sortType: 'ASC' | 'DESC',
-        field: string,
-        status: TournamentStatus,
-        search: string,
-        categoryId: number,
-      ): Promise<any> {
-        const queryBuilder = this.repository
-          .createQueryBuilder('tournament')
-          .select([
-            'tournament.id',
-            'tournament.title',
-            'category.categoryId',
-            'category.categoryName',
-            'tournament.createdAt',
-            'tournament.status',
-            'tournament.matchDuration',
-            'tournament.format',
-          ])
-          .addSelect(
-            (subQuery) =>
-              subQuery
-                .select('COUNT(DISTINCT ot.tournament_id)', 'total_records')
-                .from('organizer_tournaments', 'ot')
-                .where('tournament.isDeleted != true'),
-            'totalRecords',
-          )
-          .innerJoin('tournament.category', 'category')
-          .innerJoin('tournament.organizers', 'organizer')
-          .where('tournament.isDeleted = :isDeleted', { isDeleted: false });
-    
-        if (userId) {
-          queryBuilder.andWhere('organizer.id = :userId', { userId });
-        }
-    
-        if (status) {
-          queryBuilder.andWhere('tournament.status = :status', { status });
-        }
-    
-        if (search) {
-          queryBuilder.andWhere('LOWER(tournament.title) LIKE :search', {
-            search: `%${search.toLowerCase()}%`,
-          });
-        }
-    
-        if (categoryId) {
-          queryBuilder.andWhere('category.categoryId = :categoryId', { categoryId });
-        }
-        const fieldMapping: Record<string, string> = {
-          category: 'category.categoryName',
-          title: 'tournament.title',
-          createdAt: 'tournament.createdAt',
-          status: 'tournament.status',
-          matchDuration: 'tournament.matchDuration',
-          format: 'tournament.format',
-        };
-        
-        const orderByField = fieldMapping[field] || 'tournament.createdAt';
-        
-        return await queryBuilder
-          .orderBy(orderByField, sortType)
-          .skip(page * pageSize)
-          .take(pageSize)
-          .getManyAndCount();
-      }
-    
-      async findTournamentToShowGeneral(tournamentId: number): Promise<any> {
-        const tournament = await this.repository.findOne({
-          where: { id: tournamentId, isDeleted: false },
-          relations: ['category'],
-        });
-    
-        if (!tournament) {
-          throw new NotFoundException('Tournament not found');
-        }
-        const tournamentGeneralDto = new TournamentGeneralDto({
-          id: tournament.id,
-          title: tournament.title,
-          description: tournament.description,
-          category: {
-            id: tournament.category.categoryId,
-            categoryName: tournament.category.categoryName,
-          },
-          status: tournament.status,
-          organizers: null,
-          eventDates: null
-          // organizers,
-          // eventDates,
-        });
-    
-        return {
-          data: tournamentGeneralDto,
-          success: true,
-          total: 1,
-        };
-      }
-    
 
+    if (categoryId) {
+      queryBuilder.andWhere('category.categoryId = :categoryId', {
+        categoryId,
+      });
+    }
+    const fieldMapping: Record<string, string> = {
+      category: 'category.categoryName',
+      title: 'tournament.title',
+      createdAt: 'tournament.createdAt',
+      status: 'tournament.status',
+      matchDuration: 'tournament.matchDuration',
+      format: 'tournament.format',
+    };
+
+    const orderByField = fieldMapping[field] || 'tournament.createdAt';
+
+    return await queryBuilder
+      .orderBy(orderByField, sortType)
+      .skip(page * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+  }
+
+  async findTournamentToShowGeneral(tournamentId: number): Promise<any> {
+    const tournament = await this.repository.findOne({
+      where: { id: tournamentId, isDeleted: false },
+      relations: ['category'],
+    });
+
+    if (!tournament) {
+      throw new NotFoundException('Tournament not found');
+    }
+    const tournamentGeneralDto = new TournamentGeneralDto({
+      id: tournament.id,
+      title: tournament.title,
+      description: tournament.description,
+      category: {
+        id: tournament.category.categoryId,
+        categoryName: tournament.category.categoryName,
+      },
+      status: tournament.status,
+      organizers: null,
+      eventDates: null,
+      // organizers,
+      // eventDates,
+    });
+
+    return {
+      data: tournamentGeneralDto,
+      success: true,
+      total: 1,
+    };
+  }
 }

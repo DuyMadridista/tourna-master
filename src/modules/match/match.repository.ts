@@ -7,7 +7,6 @@ import { LocalTime } from '@js-joda/core';
 
 @Injectable()
 export class MatchRepository extends Repository<Match> {
-
   constructor(private dataSource: DataSource) {
     super(Match, dataSource.createEntityManager());
   }
@@ -15,12 +14,11 @@ export class MatchRepository extends Repository<Match> {
   async saveAll(matches: Match[]): Promise<void> {
     await this.save(matches);
   }
-  
+
   async findById(id: number): Promise<Match> {
     return this.createQueryBuilder('match')
       .where('match.id = :id', { id })
       .getOne();
-
   }
 
   async isHaveMatchInDate(eventDateId: number): Promise<boolean> {
@@ -42,9 +40,12 @@ export class MatchRepository extends Repository<Match> {
     await this.createQueryBuilder('match')
       .delete()
       .from(Match)
-      .where('matches.event_date_id IN (SELECT ed.id FROM event_dates ed WHERE ed.tournamentId = :tournamentId)', {
-        tournamentId,
-      })
+      .where(
+        'matches.event_date_id IN (SELECT ed.id FROM event_dates ed WHERE ed.tournamentId = :tournamentId)',
+        {
+          tournamentId,
+        },
+      )
       .execute();
   }
 
@@ -57,8 +58,6 @@ export class MatchRepository extends Repository<Match> {
       .orderBy('match.start_time', 'ASC')
       .getMany();
   }
-  
-  
 
   async getAllResult(tournamentId: number): Promise<any[]> {
     return this.createQueryBuilder('match')
@@ -76,12 +75,17 @@ export class MatchRepository extends Repository<Match> {
       .innerJoin('match.eventDate', 'eventDate')
       .innerJoin('eventDate.tournament', 'tournament')
       .where('tournament.id = :tournamentId', { tournamentId })
-      .andWhere('match.team_one_id IS NOT NULL AND match.team_two_id IS NOT NULL')
+      .andWhere(
+        'match.team_one_id IS NOT NULL AND match.team_two_id IS NOT NULL',
+      )
       .orderBy('eventDate.date', 'DESC')
       .getRawMany();
   }
 
-  async isMatchInTournament(tournamentId: number, matchId: number): Promise<boolean> {
+  async isMatchInTournament(
+    tournamentId: number,
+    matchId: number,
+  ): Promise<boolean> {
     const result = await this.createQueryBuilder('match')
       .innerJoin('match.eventDate', 'eventDate')
       .innerJoin('eventDate.tournament', 'tournament')
@@ -107,7 +111,10 @@ export class MatchRepository extends Repository<Match> {
       .getMany();
   }
 
-  async getAllByEventDateIdOrOrderByStartTime(eventDateId: number, startTime: LocalTime): Promise<Match[]> {
+  async getAllByEventDateIdOrOrderByStartTime(
+    eventDateId: number,
+    startTime: LocalTime,
+  ): Promise<Match[]> {
     return this.createQueryBuilder('match')
       .innerJoin('match.eventDate', 'eventDate')
       .where('eventDate.id = :eventDateId', { eventDateId })
@@ -127,7 +134,7 @@ export class MatchRepository extends Repository<Match> {
       ])
       .innerJoin('match.teamOne', 'team')
       .innerJoin('match.eventDate', 'eventDate')
-      .where('team.tournamentId = :tournamentId', { tournamentId })
+      .where('team.tournament_id = :tournamentId', { tournamentId })
       .groupBy('team.id')
       .orderBy('team.score', 'DESC')
       .addOrderBy('theDiff', 'DESC')
@@ -135,7 +142,9 @@ export class MatchRepository extends Repository<Match> {
       .getRawMany();
   }
 
-  async getMatchOfLeaderBoard(tournamentId: number): Promise<MatchOfLeaderBoardDto[]> {
+  async getMatchOfLeaderBoard(
+    tournamentId: number,
+  ): Promise<MatchOfLeaderBoardDto[]> {
     return this.createQueryBuilder('match')
       .select([
         'match.id',
@@ -152,20 +161,22 @@ export class MatchRepository extends Repository<Match> {
       .innerJoin('match.teamOne', 'team1')
       .innerJoin('match.teamTwo', 'team2')
       .innerJoin('match.eventDate', 'eventDate')
-      .where('team1.tournamentId = :tournamentId', { tournamentId })
+      .where('team1.tournament_id = :tournamentId', { tournamentId })
       .groupBy('match.id')
       .orderBy('eventDate.date', 'DESC')
       .addOrderBy('match.start_time', 'DESC')
       .getRawMany();
   }
 
-  async findAllDuplicateMatchByTournamentId(tournamentId: number): Promise<Match[]> {
+  async findAllDuplicateMatchByTournamentId(
+    tournamentId: number,
+  ): Promise<Match[]> {
     return this.createQueryBuilder('match1')
       .innerJoin('match1.eventDate', 'eventDate1')
       .innerJoin('eventDate1.tournament', 'tournament1')
       .where('tournament1.id = :tournamentId', { tournamentId })
       .andWhere(
-        qb =>
+        (qb) =>
           `EXISTS (${qb
             .subQuery()
             .select('1')

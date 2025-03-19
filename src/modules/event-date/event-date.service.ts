@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, forwardRef, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  forwardRef,
+  Inject,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EventDate } from './entities/event-date.entity';
 import { EventDateRepository } from './event-date.repository';
@@ -39,9 +45,14 @@ export class EventDateService {
   }
 
   async findByEventDateId(eventDateId: number): Promise<EventDate> {
-    const eventDate = await this.eventDateRepository.findOne({where: {id: eventDateId}, relations: ['tournament'] });
+    const eventDate = await this.eventDateRepository.findOne({
+      where: { id: eventDateId },
+      relations: ['tournament'],
+    });
     if (!eventDate) {
-      throw new NotFoundException(`EventDate with id ${eventDateId} does not exist`);
+      throw new NotFoundException(
+        `EventDate with id ${eventDateId} does not exist`,
+      );
     }
     return eventDate;
   }
@@ -53,36 +64,43 @@ export class EventDateService {
     endTime: string,
   ): Promise<SuccessResponseDto<EventDate>> {
     let warningMessage = '';
-  
+
     const eventDate = await this.eventDateRepository.findById(eventDateId);
     if (!eventDate) {
-      throw new NotFoundException(`EventDate with id ${eventDateId} does not exist`);
+      throw new NotFoundException(
+        `EventDate with id ${eventDateId} does not exist`,
+      );
     }
-  
-    const tournament = await this.tournamentRepository.findTournamentByIdAndIsDeletedFalse(tournamentId);
+
+    const tournament =
+      await this.tournamentRepository.findTournamentByIdAndIsDeletedFalse(
+        tournamentId,
+      );
     if (!tournament) {
       throw new NotFoundException('Tournament not found');
     }
-  
+
     if (['FINISHED', 'DISCARDED'].includes(tournament.status)) {
       throw new BadRequestException('This tournament is finished or discarded');
     }
-  
+
     const startTimeValid = LocalTime.parse(startTime);
     const endTimeValid = LocalTime.parse(endTime);
-  
+
     if (tournamentId !== eventDate.tournament.id) {
-      throw new NotFoundException(`EventDate with id ${eventDateId} does not belong to this tournament`);
+      throw new NotFoundException(
+        `EventDate with id ${eventDateId} does not belong to this tournament`,
+      );
     }
-  
+
     if (startTimeValid.isAfter(endTimeValid)) {
       throw new BadRequestException('Start time must be before end time');
     }
-  
+
     if (startTimeValid.equals(endTimeValid)) {
       throw new BadRequestException('Start time and end time are the same');
     }
-  
+
     if (
       eventDate.date === LocalDate.now() &&
       startTimeValid.isBefore(LocalTime.now()) &&
@@ -90,51 +108,73 @@ export class EventDateService {
     ) {
       throw new BadRequestException('Start time must be after current time');
     }
-  
-    const matches = await this.matchRepository.getAllByEventDateIdOrOrderByStartTime(eventDateId,startTimeValid);
-    const startTimeChange = Duration.between(eventDate.startTime, startTimeValid).toMinutes();
-  
+
+    const matches =
+      await this.matchRepository.getAllByEventDateIdOrOrderByStartTime(
+        eventDateId,
+        startTimeValid,
+      );
+    const startTimeChange = Duration.between(
+      eventDate.startTime,
+      startTimeValid,
+    ).toMinutes();
+
     eventDate.startTime = startTimeValid;
     eventDate.endTime = endTimeValid;
     eventDate.updatedAt = LocalDateTime.now();
-  
+
     for (const match of matches) {
-      const matchStartTime =match.startTime;
+      const matchStartTime = match.startTime;
       const matchEndTime = match.endTime;
-  
+
       const newMatchStartTime = matchStartTime.plusMinutes(startTimeChange);
       const newMatchEndTime = matchEndTime.plusMinutes(startTimeChange);
-  
+
       if (
-        (newMatchEndTime.isBefore(matchEndTime) || newMatchStartTime.isBefore(matchStartTime)) &&
+        (newMatchEndTime.isBefore(matchEndTime) ||
+          newMatchStartTime.isBefore(matchStartTime)) &&
         startTimeChange > 0
       ) {
         throw new BadRequestException('Match time is out of range');
       }
-  
+
       match.startTime = newMatchStartTime;
       match.endTime = newMatchEndTime;
-  
-      if (newMatchStartTime.isAfter(eventDate.endTime) || newMatchEndTime.isAfter(eventDate.endTime)) {
+
+      if (
+        newMatchStartTime.isAfter(eventDate.endTime) ||
+        newMatchEndTime.isAfter(eventDate.endTime)
+      ) {
         warningMessage =
           'Time of event date is not enough for all matches, please change time of event date or change match duration of some matches';
       }
     }
-  
+
     await this.eventDateRepository.save(eventDate);
-  
-    const responseObject = new SuccessResponseDto(200, true, 1, eventDate, 'Event date updated successfully');
+
+    const responseObject = new SuccessResponseDto(
+      200,
+      true,
+      1,
+      eventDate,
+      'Event date updated successfully',
+    );
     if (warningMessage) {
       responseObject.additionalData = { warningMessage };
     }
-  
+
     return responseObject;
   }
   async findAllEventDatesAndCountMatch(tournamentId: number) {
-    return this.eventDateRepository.findAllEventDatesAndCountMatch(tournamentId);
+    return this.eventDateRepository.findAllEventDatesAndCountMatch(
+      tournamentId,
+    );
   }
 
-  private parseStringToTime(timeString: string, errorMessage: string): moment.Moment {
+  private parseStringToTime(
+    timeString: string,
+    errorMessage: string,
+  ): moment.Moment {
     const time = moment(timeString, 'HH:mm', true);
     if (!time.isValid()) {
       throw new BadRequestException(errorMessage);

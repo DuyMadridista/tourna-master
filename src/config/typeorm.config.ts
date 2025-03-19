@@ -19,11 +19,11 @@ const config = {
   password: `${process.env.DB_PASSWORD}`,
   database: `${process.env.DB_DATABASE}`,
   // entities: [join(__dirname, '**', 'entities/*.entity.{ts,js}')],
-  entities: [User,Tournament,EventDate,Match,Player,Team,Category],
+  entities: [User, Tournament, EventDate, Match, Player, Team, Category],
   migrations: [join(__dirname, '..', 'migrations/*.{ts,js}')],
   autoLoadEntities: true,
   synchronize: false,
-  logging: true
+  logging: true,
 };
 
 export default registerAs('typeorm', () => config);

@@ -26,7 +26,7 @@ export class TournamentController {
 
   @Get()
   async findAll(
-    @Query('size') pageSize : number = 10,
+    @Query('size') pageSize: number = 10,
     @Query('page') page: number = 1,
     @Query('sortValue') sortField: string = 'createdAt',
     @Query('sortType') sortType: 'ASC' | 'DESC' = 'DESC',
@@ -34,7 +34,7 @@ export class TournamentController {
     @Query('keyword') search: string = '',
     @Query('filterCategory') categoryId?: number,
   ) {
-     return await this.tournamentService.getAll(
+    return await this.tournamentService.getAll(
       page - 1,
       pageSize,
       sortField,
@@ -54,7 +54,7 @@ export class TournamentController {
   @Post()
   async create(@Body() createTournamentDto: CreateTournamentDto) {
     const { title, categoryId, eventDates, description } = createTournamentDto;
-    const data =await this.tournamentService.createTournament(
+    const data = await this.tournamentService.createTournament(
       title,
       categoryId,
       eventDates,
@@ -68,20 +68,24 @@ export class TournamentController {
     @Param('id') id: number,
     @Body() updateTournamentDto: UpdateTournamentDto,
   ) {
-    const data =await this.tournamentService.updateTournament(id, updateTournamentDto);
+    const data = await this.tournamentService.updateTournament(
+      id,
+      updateTournamentDto,
+    );
     return SuccessResponse(true, 1, data, 'Tournament updated successfully');
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   async remove(@Param('id') id: number) {
-    const data =await this.tournamentService.deleteTournament(id);
+    const data = await this.tournamentService.deleteTournament(id);
     return SuccessResponse(true, 1, data, 'Tournament deleted successfully');
   }
 
   @Get(':tournamentId/leaderboard')
   async getLeaderBoard(@Param('tournamentId') tournamentId: number) {
-    const data: LeaderBoardDetailDto = await this.tournamentService.getDetailLeaderBoard(tournamentId);
+    const data: LeaderBoardDetailDto =
+      await this.tournamentService.getDetailLeaderBoard(tournamentId);
     return SuccessResponse(true, 1, data, 'Leaderboard retrieved successfully');
   }
 

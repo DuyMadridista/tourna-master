@@ -10,11 +10,9 @@ import { TeamRepository } from '../team/team.repository';
 import { PlayerRepository } from './player.repository';
 
 @Module({
-    imports: [
-      TypeOrmModule.forFeature([Player, Team]), 
-    ], 
+  imports: [TypeOrmModule.forFeature([Player, Team])],
   controllers: [PlayerController],
-  providers: [PlayerService,PlayerRepository, TeamRepository],
-  exports: [PlayerService]
+  providers: [PlayerService, PlayerRepository, TeamRepository],
+  exports: [PlayerService],
 })
 export class PlayerModule {}

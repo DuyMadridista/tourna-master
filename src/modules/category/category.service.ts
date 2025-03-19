@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindOptionsOrder } from 'typeorm';
 import { Category } from './entities/category.entity';
@@ -11,7 +17,7 @@ export class CategoryService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
-    @Inject(forwardRef(() => TournamentService)) 
+    @Inject(forwardRef(() => TournamentService))
     private readonly tournamentService: TournamentService,
   ) {}
 
@@ -29,7 +35,9 @@ export class CategoryService {
   }
 
   async hasExistCategoryName(categoryName: string): Promise<Category | null> {
-    return this.categoryRepository.findOne({ where: { categoryName: Like(categoryName) } });
+    return this.categoryRepository.findOne({
+      where: { categoryName: Like(categoryName) },
+    });
   }
 
   getSorting(sortType: string, sortValue: string): FindOptionsOrder<Category> {
@@ -41,7 +49,9 @@ export class CategoryService {
   }
 
   async findCategoryById(id: number): Promise<Category> {
-    const category = await this.categoryRepository.findOne({ where: { categoryId: id } });
+    const category = await this.categoryRepository.findOne({
+      where: { categoryId: id },
+    });
     if (!category) throw new NotFoundException('Category not found');
     return category;
   }
@@ -75,8 +85,11 @@ export class CategoryService {
     category.deletedAt = LocalDateTime.now();
     await this.categoryRepository.save(category);
 
-    const tournaments = await this.tournamentService.findTournamentByCategoryId(id);
-    const activeTournaments = tournaments.filter(tournament => !tournament.isDeleted);
+    const tournaments =
+      await this.tournamentService.findTournamentByCategoryId(id);
+    const activeTournaments = tournaments.filter(
+      (tournament) => !tournament.isDeleted,
+    );
     for (const tournament of activeTournaments) {
       await this.tournamentService.deleteTournament(tournament.id);
     }
@@ -95,11 +108,16 @@ export class CategoryService {
   }
 
   async totalCategory(keyword: string): Promise<number> {
-    return this.categoryRepository.count({ where: { categoryName: Like(`%${keyword.trim()}%`) } });
+    return this.categoryRepository.count({
+      where: { categoryName: Like(`%${keyword.trim()}%`) },
+    });
   }
 
   async findAllCategories(): Promise<Category[]> {
-    return this.categoryRepository.find({ where: { isDeleted: false }, order: { categoryName: 'ASC' } });
+    return this.categoryRepository.find({
+      where: { isDeleted: false },
+      order: { categoryName: 'ASC' },
+    });
   }
 
   async findCategoryDtoById(categoryId: number): Promise<CategoryDto> {
@@ -108,7 +126,8 @@ export class CategoryService {
   }
 
   async countTournamentByCategory(categoryId: number): Promise<number> {
-    const tournaments = await this.tournamentService.findTournamentByCategoryId(categoryId);
-    return tournaments.filter(tournament => !tournament.isDeleted).length;
+    const tournaments =
+      await this.tournamentService.findTournamentByCategoryId(categoryId);
+    return tournaments.filter((tournament) => !tournament.isDeleted).length;
   }
 }

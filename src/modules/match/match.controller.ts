@@ -11,7 +11,7 @@ export class MatchController {
   @Get('result')
   async getAllMatchResult(@Param('tournamentId') tournamentId: number) {
     const result = await this.matchService.getAllResult(tournamentId);
-    return  SuccessResponse(true, result.length, result);
+    return SuccessResponse(true, result.length, result);
   }
 
   @Put('result/:matchID')
@@ -53,6 +53,4 @@ export class MatchController {
       updateMatchDto.matchDuration,
     );
   }
-
-
 }

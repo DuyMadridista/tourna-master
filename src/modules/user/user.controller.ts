@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, HttpStatus, HttpException, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Query,
+  Body,
+  HttpStatus,
+  HttpException,
+  Req,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { SuccessResponse } from 'src/helper/OkResponse';
 import { OrganizerUpSertDto } from './dto/organizer-upsert.dto';
@@ -10,7 +22,7 @@ export class UserController {
 
   constructor(private readonly userService: UserService) {}
 
-  @Get("table")
+  @Get('table')
   async organizerTable(
     @Query('keyword') keyword: string = '',
     @Query('sortType') sortType: 'ASC' | 'DESC' = 'DESC',
@@ -18,17 +30,25 @@ export class UserController {
     @Query('size') size: number = 10,
     @Query('sortValue') sortValue: string = UserController.DEFAULT_SORT_VALUE,
   ): Promise<any> {
-    try{
-    const totalOrganizer = await this.userService.totalOrganizer(keyword.trim());
-    const listUser = await this.userService.organizerTable(
-      keyword.trim(),
-      sortType,
-      page - 1,
-      size,
-      sortValue,
-    );
-    return SuccessResponse(true, listUser.length, listUser, 'Organizer retrieved successfully', { totalOrganizer });}
-    catch(error){
+    try {
+      const totalOrganizer = await this.userService.totalOrganizer(
+        keyword.trim(),
+      );
+      const listUser = await this.userService.organizerTable(
+        keyword.trim(),
+        sortType,
+        page - 1,
+        size,
+        sortValue,
+      );
+      return SuccessResponse(
+        true,
+        listUser.length,
+        listUser,
+        'Organizer retrieved successfully',
+        { totalOrganizer },
+      );
+    } catch (error) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
     }
   }
@@ -36,7 +56,12 @@ export class UserController {
   @Delete(':id')
   async deleteOrganizer(@Param('id') id: number): Promise<any> {
     const deletedOrganizer = await this.userService.deleteOrganizer(id);
-    return  SuccessResponse(true, 1, deletedOrganizer, 'Organizer deleted successfully');
+    return SuccessResponse(
+      true,
+      1,
+      deletedOrganizer,
+      'Organizer deleted successfully',
+    );
   }
 
   @Post()
@@ -56,25 +81,32 @@ export class UserController {
     return SuccessResponse(true, 1, temp, 'Organizer updated successfully');
   }
 
-
   @Get('getMe')
   async getMe(@Req() req: any): Promise<any> {
-    try{
+    try {
       const username = req.user?.email;
       const user = await this.userService.findByEmail(username);
       const result = OrganizerUpSertDto.fromUser(user);
-      return SuccessResponse(true, 1, result, 'Organizer retrieved successfully');
-    }
-    catch(error){
+      return SuccessResponse(
+        true,
+        1,
+        result,
+        'Organizer retrieved successfully',
+      );
+    } catch (error) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
     }
-
   }
 
   @Get('getAllOrganizer')
   async getAllOrganizer(): Promise<any> {
     const result = await this.userService.findAllOrganizer();
-    return SuccessResponse(true, result.length, result, 'Organizer retrieved successfully');
+    return SuccessResponse(
+      true,
+      result.length,
+      result,
+      'Organizer retrieved successfully',
+    );
   }
   @Put('changePassword')
   async changePassword(
@@ -84,7 +116,12 @@ export class UserController {
     const username = req.user?.email;
     const user = await this.userService.findByEmail(username);
     const updatedUser = await this.userService.changePassword(user, request);
-    return SuccessResponse(true, 1, updatedUser, 'Password changed successfully');
+    return SuccessResponse(
+      true,
+      1,
+      updatedUser,
+      'Password changed successfully',
+    );
   }
   @Get(':id')
   async getOrganizer(@Param('id') id: number): Promise<any> {

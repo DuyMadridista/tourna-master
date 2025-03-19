@@ -8,7 +8,7 @@ import { LocalDateTime } from '@js-joda/core';
 export class TournamentDto {
   id: number;
   title: string;
-//   category: CategoryDto;
+  //   category: CategoryDto;
   createdAt: LocalDateTime;
   status: TournamentStatus;
   matchDuration: number;

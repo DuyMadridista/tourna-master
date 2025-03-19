@@ -1,6 +1,6 @@
-import { LocalDate } from "@js-joda/core";
+import { LocalDate } from '@js-joda/core';
 
-export class UpdateTimeDto  {
-    startTime: string;
-    endTime: string;
+export class UpdateTimeDto {
+  startTime: string;
+  endTime: string;
 }
