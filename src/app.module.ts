@@ -15,6 +15,7 @@ import { CategoryModule } from './modules/category/category.module';
 import typeormConfig from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { GenerationModule } from './modules/generate/generation.module';
+import { CronJobsModule } from './cron-jobs/cron-jobs.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { GenerationModule } from './modules/generate/generation.module';
     EventDateModule,
     CategoryModule,
     GenerationModule,
+    CronJobsModule,
   ],
   controllers: [AppController],
   providers: [

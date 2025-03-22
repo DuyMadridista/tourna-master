@@ -415,6 +415,7 @@ export class GenerationService {
 
     matchesOfOldEventDate.splice(indexOfOldTime, 1);
     const endTime = oldMatch.startTime.minusMinutes(betweenTime);
+    // eslint-disable-next-line prefer-const
     matchesOld = this.updateTime(
       endTime,
       betweenTime,

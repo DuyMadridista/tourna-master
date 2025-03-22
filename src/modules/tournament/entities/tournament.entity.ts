@@ -6,8 +6,6 @@ import {
   UpdateDateColumn,
   ManyToMany,
   JoinTable,
-  BeforeInsert,
-  BeforeUpdate,
   OneToMany,
   JoinColumn,
   ManyToOne,
@@ -17,7 +15,7 @@ import { TournamentStatus } from '../../../enums/tournament-status.enum';
 import { TournamentFormat } from '../../../enums/tournament-format.enum';
 import { Team } from 'src/modules/team/entities/team.entity';
 import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
-import { LocalTime, LocalDate, LocalDateTime } from '@js-joda/core';
+import { LocalDateTime } from '@js-joda/core';
 import { Category } from 'src/modules/category/entities/category.entity';
 
 @Entity('tournaments')

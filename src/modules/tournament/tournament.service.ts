@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   Injectable,
   NotFoundException,
@@ -5,8 +6,7 @@ import {
   forwardRef,
   Inject,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { Tournament } from './entities/tournament.entity';
 import { UserService } from '../user/user.service';
 import { TeamService } from '../team/team.service';
@@ -23,7 +23,7 @@ import { LeaderBoardDetailDto } from 'src/modules/match/dto/LeaderBoardDetailDto
 import { SuccessResponseDto } from 'src/helper/successResponse.dto';
 import { TournamentRepository } from './tournament.repository';
 import { EventDate } from '../event-date/entities/event-date.entity';
-import { LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
+import { LocalDate, LocalTime } from '@js-joda/core';
 import { CurrentUserProvider } from 'src/helper/current-user.provider';
 import { TournamentDto } from './dto/tournament.dto';
 // import { OrganizerTournamentService } from '../organizer-tournament/organizer-tournament.service';
@@ -108,7 +108,7 @@ export class TournamentService {
   }
 
   public async deleteTournament(id: number): Promise<Tournament> {
-    const user = this.currentUserProvider.getUser();
+    // const user = this.currentUserProvider.getUser();
     const tournament =
       await this.tournamentRepository.findTournamentByIdAndNotDeleted(id);
     if (!tournament) {

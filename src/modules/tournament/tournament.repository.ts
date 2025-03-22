@@ -1,18 +1,11 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Tournament } from './entities/tournament.entity';
 import { TournamentStatus } from 'src/enums/tournament-status.enum';
 import { TournamentPlanDto } from 'src/modules/tournament/dto/tournament-plan.dto';
 import { Not, In } from 'typeorm';
-import { TournamentDto } from './dto/tournament.dto';
 import { TournamentGeneralDto } from './dto/TournamentGeneral.dto';
-import { EventDateService } from '../event-date/event-date.service';
-import { UserService } from '../user/user.service';
 
 @Injectable()
 export class TournamentRepository extends Repository<Tournament> {
@@ -79,48 +72,89 @@ export class TournamentRepository extends Repository<Tournament> {
   }
 
   async findTournamentInProgressNeedToChangeToFinished(): Promise<any[]> {
-    return this.repository.query(
-      `
-            SELECT t.tournament_id, GREATEST(MAX(m.end_time), temp.end_   time) AS max_end_time, temp.date
-            FROM tournament t
-            JOIN (
-                SELECT tournament_id, ranked.EventDateId, ranked.date, ranked.end_time
-                FROM (
-                    SELECT t.tournament_id, ed.id AS EventDateId, ed.date, ed.end_time,
-                            ROW_NUMBER() OVER (PARTITION BY t.tournament_id ORDER BY ed.date DESC) AS row_num
-                    FROM tournament t
-                    JOIN event_date ed ON t.tournament_id = ed.tournament_id
-                    WHERE t.status = :status
-                ) ranked
-                WHERE row_num = 1
-            ) AS temp ON temp.tournament_id = t.tournament_id
-            LEFT JOIN match m ON m.event_date_id = temp.EventDateId
-            WHERE temp.date <= NOW()
-            GROUP BY t.tournament_id, temp.end_time, temp.date
-        `,
-      [TournamentStatus.IN_PROGRESS],
-    );
+    return this.repository
+      .createQueryBuilder('tournaments')
+      .select('tournaments.tournament_id')
+      .addSelect('tournaments.status')
+      .addSelect('GREATEST(MAX(m.end_time), temp.end_time)', 'max_end_time')
+      .addSelect('temp.date')
+      .innerJoin(
+        (qb) => {
+          return qb
+            .select('ranked.tournament_id', 'tournament_id')
+            .addSelect('ranked.EventDateId', 'EventDateId')
+            .addSelect('ranked.date', 'date')
+            .addSelect('ranked.end_time', 'end_time')
+            .from((subQb) => {
+              return subQb
+                .select('t.tournament_id', 'tournament_id')
+                .addSelect('ed.id', 'EventDateId')
+                .addSelect('ed.date', 'date')
+                .addSelect('ed.end_time', 'end_time')
+                .addSelect(
+                  'ROW_NUMBER() OVER (PARTITION BY t.tournament_id ORDER BY ed.date DESC)',
+                  'row_num',
+                )
+                .from('tournaments', 't')
+                .innerJoin(
+                  'event_dates',
+                  'ed',
+                  't.tournament_id = ed.tournamentId',
+                )
+                .where('t.status = :status', {
+                  status: TournamentStatus.IN_PROGRESS,
+                });
+            }, 'ranked')
+            .where('ranked.row_num = 1');
+        },
+        'temp',
+        'temp.tournament_id = tournaments.tournament_id',
+      )
+      .leftJoin('matches', 'm', 'm.event_date_id = temp.EventDateId')
+      .where('temp.date <= NOW()')
+      .groupBy('tournaments.tournament_id, temp.end_time, temp.date')
+      .getRawMany();
   }
 
   async findTournamentNeedInformationNeedToChangeToFinished(): Promise<any[]> {
-    return this.repository.query(
-      `
-            select temp.tournament_id, min(temp.date) date, temp.EventDateId firstEventDateId, temp.start_time
-            from (
-                SELECT tournament_id, ranked.EventDateId, ranked.date, ranked.start_time
-                FROM (
-                    SELECT t.tournament_id, ed.id AS EventDateId, ed.date, ed.start_time,
-                            ROW_NUMBER() OVER (PARTITION BY t.tournament_id ORDER BY ed.date asc) AS row_num
-                    FROM tournament t
-                    JOIN event_date ed ON t.tournament_id = ed.tournament_id
-                    WHERE t.status = :status
-                ) ranked
-                WHERE row_num = 1) as temp
-            left join match m on m.event_date_id = temp.EventDateId
-            group by temp.tournament_id, temp.EventDateId, temp.start_time
-            having count(m.id) = 0 and (min(temp.date) <= NOW() or (min(temp.date) = NOW() and temp.start_time < LOCALTIME))`,
-      [TournamentStatus.NEED_INFORMATION],
-    );
+    const subQuery = this.repository
+      .createQueryBuilder('t')
+      .select('t.tournament_id', 'tournament_id')
+      .addSelect('ed.id', 'EventDateId')
+      .addSelect('ed.date', 'date')
+      .addSelect('ed.start_time', 'start_time')
+      .addSelect(
+        'ROW_NUMBER() OVER (PARTITION BY t.tournament_id ORDER BY ed.date ASC)',
+        'row_num',
+      )
+      .innerJoin('event_date', 'ed', 't.tournament_id = ed.tournamentId')
+      .where('t.status = :status', {
+        status: TournamentStatus.NEED_INFORMATION,
+      });
+
+    const innerTempQuery = this.repository
+      .createQueryBuilder()
+      .select('sub.tournament_id', 'tournament_id')
+      .addSelect('sub.EventDateId', 'EventDateId')
+      .addSelect('sub.date', 'date')
+      .addSelect('sub.start_time', 'start_time')
+      .from(`(${subQuery.getQuery()})`, 'sub')
+      .where('sub.row_num = 1');
+
+    return this.repository
+      .createQueryBuilder()
+      .select('temp.tournament_id', 'tournament_id')
+      .addSelect('MIN(temp.date)', 'date')
+      .addSelect('temp.EventDateId', 'firstEventDateId')
+      .addSelect('temp.start_time', 'start_time')
+      .from(`(${innerTempQuery.getQuery()})`, 'temp')
+      .leftJoin('match', 'm', 'm.event_date_id = temp.EventDateId')
+      .groupBy('temp.tournament_id, temp.EventDateId, temp.start_time')
+      .having(
+        'COUNT(m.id) = 0 AND (MIN(temp.date) <= NOW() OR (MIN(temp.date) = NOW() AND temp.start_time < LOCALTIME))',
+      )
+      .setParameters({ status: TournamentStatus.NEED_INFORMATION })
+      .getRawMany();
   }
 
   async findTournamentByCategoryId(categoryId: number): Promise<Tournament[]> {
