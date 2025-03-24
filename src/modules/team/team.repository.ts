@@ -78,7 +78,7 @@ export class TeamRepository extends Repository<Team> {
   }
 
   async getTeamByTeamId(teamId: number): Promise<Team | null> {
-    return this.findOne({ where: { teamId } });
+    return this.findOne({ where: { teamId: teamId } });
   }
 
   async getTeamNameByTeamId(teamId: number): Promise<string | null> {

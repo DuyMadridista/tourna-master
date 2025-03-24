@@ -142,7 +142,7 @@ export class MatchService {
 
       let startTime = currentEvent.startTime;
       let endTime = startTime.plusMinutes(duration);
-      let matchSlots: LocalTime[][] = schedule.get(currentEvent) ?? [];
+      const matchSlots: LocalTime[][] = schedule.get(currentEvent) ?? [];
 
       if (numMatch < eventDates.length && schedule.has(currentEvent)) {
         const lastMatch = matchSlots[matchSlots.length - 1];
@@ -431,7 +431,7 @@ export class MatchService {
     const timeChange = duration + betweenTime;
     let newStartTime: LocalTime;
     let newEndTime: LocalTime;
-    let timeDifference = 0;
+    const timeDifference = 0;
 
     // Case: Move match within the same date
     if (!isAddNewMatchInDate && !isRemoveMatchInDate) {
@@ -744,42 +744,71 @@ export class MatchService {
     return this.matchRepository.save(match);
   }
 
-  private updateScores(
+  private async updateScores(
     match: Match,
     teamOne: Team,
     teamTwo: Team,
     teamOneResult: number,
     teamTwoResult: number,
-  ): void {
-    const resultComparison = Math.sign(teamOneResult - teamTwoResult);
-
+  ): Promise<void> {
+    // Khởi tạo điểm số nếu chưa có
     if (!teamOne.score) teamOne.score = 0;
     if (!teamTwo.score) teamTwo.score = 0;
 
+    // Nếu là kết quả mới (chưa có kết quả trước đó)
     if (match.teamOneResult === null || match.teamTwoResult === null) {
-      teamOne.score +=
-        resultComparison > 0 ? 3 : resultComparison === 0 ? 1 : 0;
-      teamTwo.score +=
-        resultComparison < 0 ? 3 : resultComparison === 0 ? 1 : 0;
-    } else if (match.teamOneResult === match.teamTwoResult) {
-      teamOne.score +=
-        resultComparison > 0 ? 2 : resultComparison === 0 ? 0 : -1;
-      teamTwo.score +=
-        resultComparison < 0 ? 2 : resultComparison === 0 ? 0 : -1;
-    } else if (match.teamOneResult > match.teamTwoResult) {
-      teamOne.score -=
-        resultComparison < 0 ? 3 : resultComparison === 0 ? 2 : 0;
-      teamTwo.score +=
-        resultComparison < 0 ? 3 : resultComparison === 0 ? 1 : 0;
-    } else {
-      teamOne.score +=
-        resultComparison > 0 ? 3 : resultComparison === 0 ? 1 : 0;
-      teamTwo.score -=
-        resultComparison > 0 ? 3 : resultComparison === 0 ? 2 : 0;
+      if (teamOneResult > teamTwoResult) {
+        teamOne.score += 3; // Thắng
+        teamTwo.score += 0; // Thua
+      } else if (teamOneResult < teamTwoResult) {
+        teamOne.score += 0; // Thua
+        teamTwo.score += 3; // Thắng
+      } else {
+        teamOne.score += 1; // Hòa
+        teamTwo.score += 1; // Hòa
+      }
+    } 
+    // Nếu đang cập nhật kết quả mới
+    else {
+      // Nếu kết quả cũ là hòa
+      if (match.teamOneResult === match.teamTwoResult) {
+        if (teamOneResult > teamTwoResult) {
+          teamOne.score += 2; // Thắng
+          teamTwo.score -= 1; // Thua
+        } else if (teamOneResult < teamTwoResult) {
+          teamOne.score -= 1; // Thua
+          teamTwo.score += 2; // Thắng
+        }
+        // Nếu vẫn hòa thì không thay đổi điểm
+      }
+      // Nếu teamOne thắng trước đó
+      else if (match.teamOneResult > match.teamTwoResult) {
+        if (teamOneResult < teamTwoResult) {
+          teamOne.score -= 3; // Thua
+          teamTwo.score += 3; // Thắng
+        } else if (teamOneResult === teamTwoResult) {
+          teamOne.score -= 2; // Hòa
+          teamTwo.score += 1; // Hòa
+        }
+        // Nếu vẫn thắng thì không thay đổi điểm
+      }
+      // Nếu teamTwo thắng trước đó
+      else {
+        if (teamOneResult > teamTwoResult) {
+          teamOne.score += 3; // Thắng
+          teamTwo.score -= 3; // Thua
+        } else if (teamOneResult === teamTwoResult) {
+          teamOne.score += 1; // Hòa
+          teamTwo.score -= 2; // Hòa
+        }
+        // Nếu vẫn thắng thì không thay đổi điểm
+      }
     }
 
     teamOne.updatedAt = new Date();
     teamTwo.updatedAt = new Date();
+    await this.teamRepository.save(teamOne);
+    await this.teamRepository.save(teamTwo);
   }
   async getLeaderBoardByTournamentId(
     tournamentId: number,

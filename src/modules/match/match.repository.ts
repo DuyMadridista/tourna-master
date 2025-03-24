@@ -17,6 +17,8 @@ export class MatchRepository extends Repository<Match> {
 
   async findById(id: number): Promise<Match> {
     return this.createQueryBuilder('match')
+      .leftJoinAndSelect('match.teamOne', 'teamOne')
+      .leftJoinAndSelect('match.teamTwo', 'teamTwo')
       .where('match.id = :id', { id })
       .getOne();
   }
@@ -126,19 +128,25 @@ export class MatchRepository extends Repository<Match> {
   async getLeaderBoard(tournamentId: number): Promise<LeaderBoardDto[]> {
     return this.createQueryBuilder('match')
       .select([
-        'team.id AS teamId',
-        'team.name AS teamName',
-        'team.score AS score',
-        'SUM(CASE WHEN team.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END) - SUM(CASE WHEN team.id = match.team_one_id THEN match.team_two_result ELSE match.team_one_result END) AS theDiff',
-        'SUM(CASE WHEN team.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END) AS totalResult',
+        'team1.id AS teamId',
+        'team1.name AS teamName',
+        'team1.score AS score',
+        '(SELECT COUNT(*) FROM matches m WHERE (m.team_one_id = team1.id OR m.team_two_id = team1.id)) AS totalMatches',
+        'SUM(CASE WHEN (team1.id = match.team_one_id AND match.team_one_result > match.team_two_result) OR (team1.id = match.team_two_id AND match.team_two_result > match.team_one_result) THEN 1 ELSE 0 END) AS wins',
+        'SUM(CASE WHEN match.team_one_result = match.team_two_result THEN 1 ELSE 0 END) AS draws',
+        'SUM(CASE WHEN (team1.id = match.team_one_id AND match.team_one_result < match.team_two_result) OR (team1.id = match.team_two_id AND match.team_two_result < match.team_one_result) THEN 1 ELSE 0 END) AS losses',
+        'COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END), 0) AS goalsFor',
+        'COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_two_result ELSE match.team_one_result END), 0) AS goalsAgainst',
+        'COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END) - SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_two_result ELSE match.team_one_result END), 0) AS goalDifference',
       ])
-      .innerJoin('match.teamOne', 'team')
+      .innerJoin('match.teamOne', 'team1')
+      .innerJoin('match.teamTwo', 'team2')
       .innerJoin('match.eventDate', 'eventDate')
-      .where('team.tournament_id = :tournamentId', { tournamentId })
-      .groupBy('team.id')
-      .orderBy('team.score', 'DESC')
-      .addOrderBy('theDiff', 'DESC')
-      .addOrderBy('totalResult', 'DESC')
+      .where('team1.tournament_id = :tournamentId', { tournamentId })
+      .groupBy('team1.id')
+      .orderBy('team1.score', 'DESC')
+      .addOrderBy('goalDifference', 'DESC')
+      .addOrderBy('goalsFor', 'DESC')
       .getRawMany();
   }
 

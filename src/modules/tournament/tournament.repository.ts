@@ -127,7 +127,7 @@ export class TournamentRepository extends Repository<Tournament> {
         'ROW_NUMBER() OVER (PARTITION BY t.tournament_id ORDER BY ed.date ASC)',
         'row_num',
       )
-      .innerJoin('event_date', 'ed', 't.tournament_id = ed.tournamentId')
+      .innerJoin('event_dates', 'ed', 't.tournament_id = ed.tournamentId')
       .where('t.status = :status', {
         status: TournamentStatus.NEED_INFORMATION,
       });

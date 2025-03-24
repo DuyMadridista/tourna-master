@@ -22,9 +22,9 @@ export class EventDateRepository extends Repository<EventDate> {
     return this.findOne({ where: { id } });
   }
   async findAllDateByTournamentId(tournamentId: number): Promise<Date[]> {
-    const eventDates = await this.createQueryBuilder('event_date')
-      .select('event_date.date', 'date')
-      .where('event_date.tournamentId = :tournamentId', { tournamentId })
+    const eventDates = await this.createQueryBuilder('event_dates')
+      .select('event_dates.date', 'date')
+      .where('event_dates.tournamentId = :tournamentId', { tournamentId })
       .getRawMany();
 
     return eventDates.map((e) => e.date);
@@ -49,12 +49,12 @@ export class EventDateRepository extends Repository<EventDate> {
   async findAllEventDatesAndCountMatch(
     tournamentId: number,
   ): Promise<EventDateAdditionalDto[]> {
-    const results = await this.createQueryBuilder('event_date')
-      .select('event_date.id', 'id')
+    const results = await this.createQueryBuilder('event_dates')
+      .select('event_dates.id', 'id')
       .addSelect('COUNT(match.id)', 'numMatch')
-      .leftJoin('event_date.matches', 'match')
-      .where('event_date.tournamentId = :tournamentId', { tournamentId })
-      .groupBy('event_date.id')
+      .leftJoin('event_dates.matches', 'match')
+      .where('event_dates.tournamentId = :tournamentId', { tournamentId })
+      .groupBy('event_dates.id')
       .getRawMany();
 
     return results.map(
