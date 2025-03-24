@@ -429,9 +429,6 @@ export class MatchService {
 
     const betweenTime = tournament.timeBetween;
     const timeChange = duration + betweenTime;
-    let newStartTime: LocalTime;
-    let newEndTime: LocalTime;
-    const timeDifference = 0;
 
     // Case: Move match within the same date
     if (!isAddNewMatchInDate && !isRemoveMatchInDate) {
@@ -767,7 +764,7 @@ export class MatchService {
         teamOne.score += 1; // Hòa
         teamTwo.score += 1; // Hòa
       }
-    } 
+    }
     // Nếu đang cập nhật kết quả mới
     else {
       // Nếu kết quả cũ là hòa
@@ -813,7 +810,11 @@ export class MatchService {
   async getLeaderBoardByTournamentId(
     tournamentId: number,
   ): Promise<LeaderBoardDto[]> {
-    return this.matchRepository.getLeaderBoard(tournamentId);
+    const leaderBoard = await this.matchRepository.getLeaderBoard(tournamentId);
+    return leaderBoard.map((team, index) => ({
+      ...team,
+      rank: index + 1,
+    }));
   }
 
   /**

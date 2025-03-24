@@ -156,15 +156,16 @@ export class MatchRepository extends Repository<Match> {
     return this.createQueryBuilder('match')
       .select([
         'match.id',
-        'match.team_one_id',
+        'match.team_one_id as teamOneId',
         'team1.name AS teamOneName',
-        'match.team_two_id',
+        'match.team_two_id as teamTwoId',
         'team2.name AS teamTwoName',
-        'match.team_one_result',
-        'match.team_two_result',
-        'eventDate.date',
-        'match.start_time',
-        'match.end_time',
+        'match.team_one_result as teamOneResult',
+        'match.team_two_result as teamTwoResult',
+        'eventDate.date as date',
+        'match.start_time as startTime',
+        'match.end_time as endTime',
+        'CASE WHEN match.team_one_result > match.team_two_result THEN match.team_one_id WHEN match.team_two_result > match.team_one_result THEN match.team_two_id ELSE 0 END AS teamWinId',
       ])
       .innerJoin('match.teamOne', 'team1')
       .innerJoin('match.teamTwo', 'team2')
