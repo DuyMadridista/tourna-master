@@ -1,8 +1,10 @@
-import { Controller, Get, Put, Body, Param } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { MatchService } from './match.service';
 import { RequestDragDropMatch } from './dto/RequestDragDropMatch';
 import { SuccessResponse } from 'src/helper/OkResponse';
 import * as matchEntity from './entities/match.entity';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { parseMatchReportExcel } from 'src/helper/excel.helper';
 
 @Controller('tournament/:tournamentId/match')
 export class MatchController {
@@ -14,19 +16,28 @@ export class MatchController {
     return SuccessResponse(true, result.length, result);
   }
 
-  @Put('result/:matchID')
+  // @Put('result/:matchID')
+  // async updateMatchResult(
+  //   @Param('tournamentId') tournamentId: number,
+  //   @Param('matchID') matchID: number,
+  //   @Body() match: matchEntity.Match,
+  // ) {
+  //   const updateMatch = await this.matchService.updateMatchResult(
+  //     tournamentId,
+  //     matchID,
+  //     match.teamOneResult,
+  //     match.teamTwoResult,
+  //   );
+  //   return SuccessResponse(true, 1, updateMatch);
+  // }
+  @Put('updateResult')
+  @UseInterceptors(FileInterceptor('file'))
   async updateMatchResult(
-    @Param('tournamentId') tournamentId: number,
-    @Param('matchID') matchID: number,
-    @Body() match: matchEntity.Match,
+    @UploadedFile() file: Express.Multer.File & { buffer: Buffer },
   ) {
-    const updateMatch = await this.matchService.updateMatchResult(
-      tournamentId,
-      matchID,
-      match.teamOneResult,
-      match.teamTwoResult,
-    );
-    return SuccessResponse(true, 1, updateMatch);
+    const report = parseMatchReportExcel(file.buffer);
+
+    return SuccessResponse(true, 1, report, 'Match report imported successfully');
   }
 
   @Put('dragAndDrop')

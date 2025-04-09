@@ -27,8 +27,6 @@ import { LeaderBoardDto } from './dto/LeaderBoardDto';
 import { TournamentRepository } from '../tournament/tournament.repository';
 import { TeamRepository } from '../team/team.repository';
 import { ChronoUnit, LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
-import { MATCHES } from 'class-validator';
-import { Tournament } from '../tournament/entities/tournament.entity';
 @Injectable()
 export class MatchService {
   constructor(

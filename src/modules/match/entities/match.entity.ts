@@ -6,11 +6,13 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Team } from '../../team/entities/team.entity';
 import { EventDate } from '../../event-date/entities/event-date.entity';
 import { TypeMatch } from '../../../enums/match-type.enum';
 import { LocalTime } from '@js-joda/core';
+import { PlayerMatch } from 'src/modules/player-match/player-match.entity';
 
 @Entity('matches')
 export class Match {
@@ -78,4 +80,7 @@ export class Match {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+  
+  @OneToMany(() => PlayerMatch, (playerMatch) => playerMatch.match)
+  playerMatches: PlayerMatch[];
 }

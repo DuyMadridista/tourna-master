@@ -6,9 +6,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Team } from '../../team/entities/team.entity';
 import { IsDate, Length, Matches } from 'class-validator';
+import { PlayerMatch } from 'src/modules/player-match/player-match.entity';
 
 @Entity('players')
 export class Player {
@@ -46,4 +48,7 @@ export class Player {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+  
+  @OneToMany(() => PlayerMatch, (playerMatch) => playerMatch.player)
+  playerMatches: PlayerMatch[];
 }

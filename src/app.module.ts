@@ -16,6 +16,7 @@ import typeormConfig from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { GenerationModule } from './modules/generate/generation.module';
 import { CronJobsModule } from './cron-jobs/cron-jobs.module';
+import { PlayerMatchModule } from './modules/player-match/player-match.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { CronJobsModule } from './cron-jobs/cron-jobs.module';
     CategoryModule,
     GenerationModule,
     CronJobsModule,
+    PlayerMatchModule,
   ],
   controllers: [AppController],
   providers: [
