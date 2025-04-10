@@ -28,6 +28,9 @@ export class Player {
   @JoinColumn({ name: 'team_id' })
   team: Team;
 
+  @Column({ name: 'number', nullable: true })
+  number: number;
+
   @Column({ name: 'dob', nullable: true })
   @IsDate({ message: 'Date of birth must be a valid date' })
   dateOfBirth: Date;

@@ -11,12 +11,15 @@ import { MatchUtils } from 'src/helper/match.utils';
 import { TeamRepository } from '../team/team.repository';
 import { MatchRepository } from './match.repository';
 import { TournamentRepository } from '../tournament/tournament.repository';
+import { PlayerMatchModule } from '../player-match/player-match.module';
+import { PlayerMatch } from '../player-match/player-match.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Match, Team, Tournament]),
+    TypeOrmModule.forFeature([Match, Team, Tournament, PlayerMatch]),
     forwardRef(() => TeamModule),
     forwardRef(() => EventDateModule),
+    forwardRef(() => PlayerMatchModule),
   ],
   controllers: [MatchController],
   providers: [

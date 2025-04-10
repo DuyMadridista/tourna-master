@@ -27,12 +27,15 @@ import { LeaderBoardDto } from './dto/LeaderBoardDto';
 import { TournamentRepository } from '../tournament/tournament.repository';
 import { TeamRepository } from '../team/team.repository';
 import { ChronoUnit, LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
+import { PlayerMatch } from '../player-match/player-match.entity';
 @Injectable()
 export class MatchService {
   constructor(
     private readonly matchRepository: MatchRepository,
 
     private readonly tournamentRepository: TournamentRepository,
+    @InjectRepository(PlayerMatch)
+    private readonly playerMatchRepository: Repository<PlayerMatch>,
     private readonly teamRepository: TeamRepository,
     @Inject(forwardRef(() => TeamService))
     private readonly teamService: TeamService,
@@ -694,7 +697,7 @@ export class MatchService {
     matchId: number,
     teamOneResult: number,
     teamTwoResult: number,
-  ): Promise<Match> {
+  ): Promise<any> {
     await this.checkMatchInTournament(tournamentId, matchId);
 
     const tournament =
@@ -735,8 +738,8 @@ export class MatchService {
 
     match.teamOneResult = teamOneResult;
     match.teamTwoResult = teamTwoResult;
-
-    return this.matchRepository.save(match);
+    await this.matchRepository.save(match)
+    return { matchId: match.id, teamOneId: match.teamOne.teamId, teamTwoId: match.teamTwo.teamId };
   }
 
   private async updateScores(
@@ -868,4 +871,40 @@ export class MatchService {
   async deleteAllMatchByTournamentId(tournamentId: number): Promise<void> {
     await this.matchRepository.deleteMatchByTournamentId(tournamentId);
   }
+
+  async getMatchResult(tournamentId: number, matchId: number): Promise<any> {
+    await this.checkMatchInTournament(tournamentId, matchId);
+  
+    const match = await this.matchRepository.findById(matchId);
+    if (!match) {
+      throw new NotFoundException('Match not found');
+    }
+  
+    const listPlayerMatch = await this.playerMatchRepository.find({
+      where: { matchId },
+      relations: ['player', 'player.team'],
+    });
+  
+    const result: any[] = listPlayerMatch.map((pm) => ({
+      id: pm.playerId,
+      name: pm.player.playerName,
+      number: pm.player.number,
+      goals: pm.goals,
+      goalMinutes: pm.goalMinutes ?? [],
+      yellowCards: pm.yellowCards,
+      yellowCardMinutes: pm.yellowCardMinutes ?? [],
+      redCard: pm.redCard,
+      redCardMinute: pm.redCardMinute,
+      type: pm.isStarter ? 'starter' : 'substitute',
+      minutesIn: pm.minutesIn,
+      minutesOut: pm.minutesOut,
+      teamId: pm.player.team.teamId,
+    }));
+  
+    return {
+      match,
+      listPlayerMatch: result,
+    };
+  }
+  
 }
