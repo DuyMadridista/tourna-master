@@ -81,6 +81,9 @@ export class Tournament {
   @Column({ name: 'description', type: 'text', nullable: true })
   description: string;
 
+  @Column({ name: 'place', type: 'text', nullable: true })
+  place: string;
+
   @ManyToMany(() => User, (user) => user.tournaments, { cascade: true })
   @JoinTable({
     name: 'organizer_tournaments',
@@ -94,6 +97,21 @@ export class Tournament {
   @OneToMany(() => EventDate, (eventDate) => eventDate.tournament)
   eventDates: EventDate[];
 
+  @Column({ nullable: true })
+  numberOfPlayers: number;
+
+    //  GROUP_STAGE
+    @Column({ nullable: true })
+    numberOfGroups: number;
+  
+    @Column({ nullable: true })
+    teamsPerGroup: number;
+  
+    @Column({ nullable: true })
+    advancePerGroup: number; 
+  
+  
+  
   constructor(init?: Partial<Tournament>) {
     Object.assign(this, init);
   }

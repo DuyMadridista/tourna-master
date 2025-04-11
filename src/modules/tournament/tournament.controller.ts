@@ -43,7 +43,7 @@ export class TournamentController {
       search.trim(),
       categoryId,
     );
-    // return SuccessResponse(true, data.length, data, 'Tournaments retrieved successfully');
+    //return SuccessResponse(true, data.length, data, 'Tournaments retrieved successfully');
   }
 
   @Get(':id')
@@ -53,12 +53,18 @@ export class TournamentController {
 
   @Post()
   async create(@Body() createTournamentDto: CreateTournamentDto) {
-    const { title, categoryId, eventDates, description } = createTournamentDto;
+    const { title, categoryId, eventDates, description, format,numberOfPlayers, numberOfGroups, teamsPerGroup, advancePerGroup, place } = createTournamentDto;
     const data = await this.tournamentService.createTournament(
-      title,
+      title,  
       categoryId,
       eventDates,
       description,
+      format,
+      numberOfPlayers,
+      numberOfGroups,
+      teamsPerGroup,
+      advancePerGroup,
+      place,
     );
     return SuccessResponse(true, 1, data, 'Tournament created successfully');
   }

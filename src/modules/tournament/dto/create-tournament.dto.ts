@@ -8,9 +8,12 @@ import {
   IsArray,
   IsDate,
   Matches,
+  IsEnum,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { LocalDate } from '@js-joda/core';
+import { Column } from 'typeorm';
+import { TournamentFormat } from 'src/enums/tournament-format.enum';
 
 export class CreateTournamentDto {
   @Matches(/^[a-zA-Z0-9\p{L}\s]*$/u, {
@@ -43,7 +46,26 @@ export class CreateTournamentDto {
   @Transform(({ value }) => value?.trim())
   description?: string;
 
+  @IsNotEmpty({ message: 'Format must not be null' })
+  @IsEnum(TournamentFormat, { message: 'Invalid tournament format' })
+  format: TournamentFormat;
+
+  @IsInt()
+  @IsNotEmpty({ message: 'Number of players must not be null' })
+  numberOfPlayers: number;
+
+  @IsString()
+  @Transform(({ value }) => value?.trim())
+  place?: string;
+  //  GROUP_STAGE
+  numberOfGroups: number;
+
+  teamsPerGroup: number;
+
+  advancePerGroup: number; 
+
   constructor(partial: Partial<CreateTournamentDto>) {
-    Object.assign(this, partial);
-  }
+  Object.assign(this, partial);
 }
+}
+

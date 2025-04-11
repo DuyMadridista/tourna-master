@@ -4,6 +4,7 @@ import { TournamentStatus } from 'src/enums/tournament-status.enum';
 import { OrganizerInGeneralDto } from '../../user/dto/OrganizerInGeneral.dto';
 import { EventDate } from '../../event-date/entities/event-date.entity';
 import { CategoryDto } from 'src/modules/category/dto/category.dto';
+import { TournamentFormat } from 'src/enums/tournament-format.enum';
 
 export class TournamentGeneralDto {
   @ApiProperty({ description: 'Unique identifier of the tournament' })
@@ -26,7 +27,43 @@ export class TournamentGeneralDto {
     type: () => CategoryDto,
   })
   category: CategoryDto;
+  
+  @ApiProperty({
+    description: 'Place of the tournament',
+    type: String,
+  })
+  place: string;
 
+  @ApiProperty({
+    description: 'Format of the tournament',
+    enum: TournamentFormat,
+  })
+  format: TournamentFormat;
+  
+  @ApiProperty({
+    description: 'Number of players in the tournament',
+    type: Number,
+  })
+  numberOfPlayers: number;
+  
+  @ApiProperty({
+    description: 'Number of groups in the tournament',
+    type: Number,
+  })
+  numberOfGroups: number;
+  
+  @ApiProperty({
+    description: 'Number of teams per group in the tournament',
+    type: Number,
+  })
+  teamsPerGroup: number;
+  
+  @ApiProperty({
+    description: 'Number of teams advancing per group in the tournament',
+    type: Number,
+  })
+  advancePerGroup: number;
+  
   @ApiProperty({
     description: 'List of organizers of the tournament',
     type: () => [OrganizerInGeneralDto],

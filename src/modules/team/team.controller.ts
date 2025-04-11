@@ -19,6 +19,7 @@ import { Team } from './entities/team.entity';
 import { TeamPlayerDto } from './dto/team-player.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as xlsx from 'xlsx';
+import { camelCase } from 'lodash';
 
 @Controller('tournament/:tournamentId/team')
 export class TeamController {
@@ -73,7 +74,7 @@ export class TeamController {
     @Param('tournamentId') tournamentId: number,
   ): Promise<SuccessResponseDto<Team>> {
     const newTeam = await this.teamService.createTeam(
-      teamDto.teamName.trim(),
+      teamDto,
       tournamentId,
     );
 
@@ -128,8 +129,15 @@ export class TeamController {
     const workbook = xlsx.read(file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(sheet);
+    const rawData = xlsx.utils.sheet_to_json(sheet);
 
+    const data = rawData.map((row: Record<string, any>) => {
+      const newRow: Record<string, any> = {};
+      for (const key in row) {
+        newRow[camelCase(key)] = row[key];
+      }
+      return newRow;
+    });
     const importedTeams = await this.teamService.importTeams(
       data,
       tournamentId,

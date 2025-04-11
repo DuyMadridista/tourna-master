@@ -37,6 +37,10 @@
         .leftJoin('team.players', 'player')
         .select('team.id', 'teamId')
         .addSelect('team.name', 'teamName')
+        .addSelect('team.tier', 'tier')
+        .addSelect('team.leaderName', 'leaderName')
+        .addSelect('team.leaderEmail', 'leaderEmail')
+        .addSelect('team.leaderPhoneNumber', 'leaderPhoneNumber')
         .addSelect('COUNT(player.playerId)', 'playerCount')
         .where('team.tournament_id = :tournamentId', { tournamentId })
         .groupBy('team.id')
@@ -48,7 +52,7 @@
 
       return teams.map(
         (team) =>
-          new TeamPlayerDto(team.teamId, team.teamName, Number(team.playerCount)),
+          new TeamPlayerDto(team.teamId, team.teamName, team.tier, team.leaderName, team.leaderEmail, team.leaderPhoneNumber, Number(team.playerCount)),
       );
     }
 
@@ -62,7 +66,7 @@
       return teams.length > 0;
     }
 
-    async   createTeam(teamName: string, tournamentId: number): Promise<Team> {
+    async   createTeam(team: Team, tournamentId: number): Promise<Team> {
       const tournament = await this.tournamentRepository.findOne({
         where: { id: tournamentId },
       });
@@ -73,18 +77,22 @@
         );
       }
 
-      const exists = await this.hasExistTeamName(tournamentId, teamName);
+      const exists = await this.hasExistTeamName(tournamentId, team.teamName.trim());
       if (exists) {
         throw new BadRequestException('Team name already exists.');
       }
 
-      const team = this.teamRepository.create({
-        teamName: teamName.trim(),
+      const newTeam = this.teamRepository.create({
+        teamName: team.teamName.trim(),
+        tier: team.tier,
+        leaderName: team.leaderName,
+        leaderEmail: team.leaderEmail,
+        leaderPhoneNumber: team.leaderPhoneNumber,
         tournament,
         createdAt: new Date(),
       });
-      await this.teamRepository.save(team);
-      return team;
+      await this.teamRepository.save(newTeam);
+      return newTeam;
     }
 
     async updateTeam(
@@ -189,8 +197,7 @@
       const teams: Team[] = [];
 
       for (const item of data) {
-        const teamName = item['Team Name'].trim();
-        const newTeam = await this.createTeam(teamName, tournamentId);
+        const newTeam = await this.createTeam(item, tournamentId);
         teams.push(newTeam);
       }
       return teams;

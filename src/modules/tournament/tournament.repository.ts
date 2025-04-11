@@ -266,8 +266,12 @@ export class TournamentRepository extends Repository<Tournament> {
       status: tournament.status,
       organizers: null,
       eventDates: null,
-      // organizers,
-      // eventDates,
+      format: tournament.format,
+      numberOfPlayers: tournament.numberOfPlayers,
+      numberOfGroups: tournament.numberOfGroups,
+      teamsPerGroup: tournament.teamsPerGroup,
+      advancePerGroup: tournament.advancePerGroup,
+      place: tournament.place,
     });
 
     return {

@@ -24,6 +24,16 @@ export class Team {
     message: 'Team name must be alphanumeric',
   })
   teamName: string;
+  @Column({ name: 'tier', default: 0 })
+  tier: number;
+  @Column({ nullable: true, length: 30 })
+  leaderName: string;
+  
+  @Column({ nullable: true, length: 100 })
+  leaderEmail: string;
+  
+  @Column({ nullable: true, length: 15 })
+  leaderPhoneNumber: string;
 
   @Column({ name: 'score', default: 0 })
   score: number;
