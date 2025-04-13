@@ -71,7 +71,7 @@ export class GenerationService {
     const timeSheetMatches = await this.matchService.timeSheetMatches(
       duration,
       betweenTime,
-      matches.length,
+      matches,
       eventDates,
     );
     let matchList: MatchDto[] = [];
@@ -88,7 +88,7 @@ export class GenerationService {
       const newTimeSheetMatches = await this.matchService.timeSheetMatches(
         duration,
         betweenTime,
-        matches.length,
+        matches,
         eventDates,
       );
 

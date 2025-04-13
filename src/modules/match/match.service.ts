@@ -1,3 +1,4 @@
+import { Length } from 'class-validator';
 import {
   Injectable,
   NotFoundException,
@@ -85,10 +86,13 @@ export class MatchService {
   timeSheetMatches(
     duration: number,
     betweenTime: number,
-    numMatch: number,
+    matches: Team[][],
     eventDates: EventDate[],
   ): Map<EventDate, LocalTime[][]> {
-    if (numMatch < eventDates.length) {
+    const numMatch = matches.length;
+
+    // 1. Nếu số ngày nhiều hơn số trận, chỉ lấy đủ số trận ngày đầu tiên
+    if (eventDates.length > numMatch) {
       eventDates = eventDates
         .sort((a, b) =>
           LocalDate.parse(a.date.toString()).compareTo(
@@ -98,97 +102,71 @@ export class MatchService {
         .slice(0, numMatch);
     }
 
-    let remainingMatches = numMatch;
-    let remainingEvents = eventDates.length;
-    let matchesPerDay = Math.floor(remainingMatches / remainingEvents);
-
-    const availableTimeSlots = this.matchUtils.timeSheet(
+    const totalDays = eventDates.length;
+    const availableSlots = this.matchUtils.timeSheet(
       duration,
       betweenTime,
       eventDates,
     );
-    const totalTimeSlots = Array.from(availableTimeSlots.values()).reduce(
-      (a, b) => a + b,
+
+    // 2. Tổng slot khả dụng để check đủ hay không
+    const totalSlots = Array.from(availableSlots.values()).reduce(
+      (sum, val) => sum + val,
       0,
     );
 
-    if (totalTimeSlots < numMatch) {
+    if (totalSlots < numMatch) {
       throw new BadRequestException(
         'The tournament schedule does not accommodate the current number of matches.',
       );
     }
 
-    const allEqualSlots = new Set(availableTimeSlots.values()).size === 1;
-    eventDates.sort((a, b) => {
-      if (allEqualSlots) {
-        return LocalDate.parse(a.date.toString()).compareTo(
-          LocalDate.parse(b.date.toString()),
-        );
-      }
-      return (
-        (availableTimeSlots.get(a) ?? 0) - (availableTimeSlots.get(b) ?? 0)
-      );
+    // 3. Sắp xếp ngày theo số slot giảm dần (để ngày nhiều slot gánh trận dư)
+    const sortedDates = [...eventDates].sort((a, b) => {
+      const slotA = availableSlots.get(a) ?? 0;
+      const slotB = availableSlots.get(b) ?? 0;
+      return slotB - slotA;
     });
 
-    const schedule = new Map<EventDate, LocalTime[][]>();
+    // 4. Phân bổ số trận mỗi ngày sao cho chênh lệch <= 1
+    const basePerDay = Math.floor(numMatch / totalDays);
+    let extra = numMatch % totalDays;
 
-    for (let i = 0; i < eventDates.length; i++) {
-      const currentEvent = eventDates[i];
-      const parsedDate = LocalDate.parse(currentEvent.date.toString());
-      const latestPossibleTime = LocalTime.of(23, 59, 59);
-      const latestPossibleDateTime = LocalDateTime.of(
-        parsedDate,
-        latestPossibleTime,
-      );
+    const matchesPerDay = new Map<EventDate, number>();
+    for (const day of sortedDates) {
+      const assign = basePerDay + (extra > 0 ? 1 : 0);
+      const available = availableSlots.get(day)!;
 
-      let startTime = currentEvent.startTime;
-      let endTime = startTime.plusMinutes(duration);
-      const matchSlots: LocalTime[][] = schedule.get(currentEvent) ?? [];
-
-      if (numMatch < eventDates.length && schedule.has(currentEvent)) {
-        const lastMatch = matchSlots[matchSlots.length - 1];
-        startTime = lastMatch[1].plusMinutes(betweenTime);
-        endTime = startTime.plusMinutes(duration);
-      }
-
-      let addedMatches = 0;
-      let currentDateTime = LocalDateTime.of(parsedDate, startTime);
-
-      while (
-        endTime.isBefore(currentEvent.endTime) &&
-        addedMatches < matchesPerDay &&
-        remainingMatches > 0 &&
-        currentDateTime.isBefore(latestPossibleDateTime)
-      ) {
-        matchSlots.push([startTime, endTime]);
-        startTime = endTime.plusMinutes(betweenTime);
-        endTime = startTime.plusMinutes(duration);
-        currentDateTime = currentDateTime.plusMinutes(duration + betweenTime);
-        remainingMatches--;
-        addedMatches++;
-      }
-
-      remainingEvents--;
-      if (matchSlots.length < matchesPerDay && remainingEvents > 0) {
-        matchesPerDay = Math.floor(remainingMatches / remainingEvents);
-      }
-
-      schedule.set(currentEvent, matchSlots);
-
-      // Nếu số trận ít hơn số ngày nhưng chưa chia đủ → chạy lại
-      if (
-        numMatch < eventDates.length &&
-        remainingEvents === 0 &&
-        remainingMatches > 0
-      ) {
-        i = -1;
-        matchesPerDay = 1;
-        remainingEvents = eventDates.length;
-      }
-
-      if (remainingMatches === 0) break;
+      // Giới hạn theo slot khả dụng
+      const finalAssign = Math.min(assign, available);
+      matchesPerDay.set(day, finalAssign);
+      if (extra > 0) extra--;
     }
 
+    // 5. Gán timeslot cho từng ngày
+    const schedule = new Map<EventDate, LocalTime[][]>();
+    for (const day of sortedDates) {
+      const parsedDate = LocalDate.parse(day.date.toString());
+      let startTime = day.startTime;
+      let endTime = startTime.plusMinutes(duration);
+      const timeSlots: LocalTime[][] = [];
+
+      const matchCount = matchesPerDay.get(day)!;
+
+      for (let i = 0; i < matchCount; i++) {
+        if (endTime.isAfter(day.endTime)) break;
+
+        timeSlots.push([startTime, endTime]);
+
+        // Cập nhật cho trận kế tiếp
+        startTime = endTime.plusMinutes(betweenTime);
+        endTime = startTime.plusMinutes(duration);
+      }
+
+      schedule.set(day, timeSlots);
+    }
+
+    // 6. Trả về Map đã sắp theo ngày
     return new Map(
       [...schedule.entries()].sort((a, b) =>
         LocalDate.parse(a[0].date.toString()).compareTo(
@@ -204,25 +182,73 @@ export class MatchService {
     duration: number,
   ): Promise<MatchDto[]> {
     const matchList: Match[] = [];
-    let j = 0;
+    const usedTeamsByDate = new Map<number, Set<number>>(); // eventDate.id -> Set<teamId>
+    const eventDates = Array.from(schedule.keys());
 
-    // Ghép cặp các trận đấu với thời gian tương ứng
+    for (const eventDate of eventDates) {
+      usedTeamsByDate.set(eventDate.id, new Set());
+    }
+
+    const remainingMatches = [...matches];
+
+    // Step 1: Cố gắng phân bổ theo constraint (1 đội không đá 2 trận/ngày)
     for (const [eventDate, timeSlots] of schedule.entries()) {
-      for (let i = 0; i < timeSlots.length; i++, j++) {
-        const times = timeSlots[i];
-        const match = new Match();
-        match.eventDate = { id: eventDate.id } as EventDate;
-        match.teamOne = { teamId: matches[j][0].teamId } as Team;
-        match.teamTwo = { teamId: matches[j][1].teamId } as Team;
-        match.startTime = times[0];
-        match.endTime = times[1];
-        match.matchDuration = duration;
-        match.type = TypeMatch.MATCH;
-        matchList.push(match);
+      const teamSet = usedTeamsByDate.get(eventDate.id)!;
+
+      for (let i = 0; i < timeSlots.length; i++) {
+        const slot = timeSlots[i];
+
+        const matchIndex = remainingMatches.findIndex(
+          ([teamA, teamB]) =>
+            !teamSet.has(teamA.teamId) && !teamSet.has(teamB.teamId),
+        );
+
+        if (matchIndex !== -1) {
+          const [teamOne, teamTwo] = remainingMatches.splice(matchIndex, 1)[0];
+          const match = new Match();
+          match.eventDate = { id: eventDate.id } as EventDate;
+          match.teamOne = { teamId: teamOne.teamId } as Team;
+          match.teamTwo = { teamId: teamTwo.teamId } as Team;
+          match.startTime = slot[0];
+          match.endTime = slot[1];
+          match.matchDuration = duration;
+          match.type = TypeMatch.MATCH;
+
+          matchList.push(match);
+          teamSet.add(teamOne.teamId);
+          teamSet.add(teamTwo.teamId);
+        }
+      }
+    }
+
+    // Step 2: Gán các trận còn lại dù có thể vi phạm constraint
+    if (remainingMatches.length > 0) {
+      let j = 0;
+      for (const [eventDate, timeSlots] of schedule.entries()) {
+        for (
+          let i = 0;
+          i < timeSlots.length && remainingMatches.length > 0;
+          i++
+        ) {
+          const [teamOne, teamTwo] = remainingMatches.shift()!;
+          const match = new Match();
+          match.eventDate = { id: eventDate.id } as EventDate;
+          match.teamOne = { teamId: teamOne.teamId } as Team;
+          match.teamTwo = { teamId: teamTwo.teamId } as Team;
+          match.startTime = timeSlots[i][0];
+          match.endTime = timeSlots[i][1];
+          match.matchDuration = duration;
+          match.type = TypeMatch.MATCH;
+
+          matchList.push(match);
+          j++;
+        }
       }
     }
 
     await this.matchRepository.saveAll(matchList);
+
+    // Fetch and convert all matches by eventDate
     const matchDTOs: MatchDto[] = [];
     for (const eventDate of schedule.keys()) {
       const lastMatches = await this.matchRepository.getAllByEventDateId(
@@ -738,8 +764,12 @@ export class MatchService {
 
     match.teamOneResult = teamOneResult;
     match.teamTwoResult = teamTwoResult;
-    await this.matchRepository.save(match)
-    return { matchId: match.id, teamOneId: match.teamOne.teamId, teamTwoId: match.teamTwo.teamId };
+    await this.matchRepository.save(match);
+    return {
+      matchId: match.id,
+      teamOneId: match.teamOne.teamId,
+      teamTwoId: match.teamTwo.teamId,
+    };
   }
 
   private async updateScores(
@@ -874,17 +904,17 @@ export class MatchService {
 
   async getMatchResult(tournamentId: number, matchId: number): Promise<any> {
     await this.checkMatchInTournament(tournamentId, matchId);
-  
+
     const match = await this.matchRepository.findById(matchId);
     if (!match) {
       throw new NotFoundException('Match not found');
     }
-  
+
     const listPlayerMatch = await this.playerMatchRepository.find({
       where: { matchId },
       relations: ['player', 'player.team'],
     });
-  
+
     const result: any[] = listPlayerMatch.map((pm) => ({
       id: pm.playerId,
       name: pm.player.playerName,
@@ -900,11 +930,10 @@ export class MatchService {
       minutesOut: pm.minutesOut,
       teamId: pm.player.team.teamId,
     }));
-  
+
     return {
       match,
       listPlayerMatch: result,
     };
   }
-  
 }
