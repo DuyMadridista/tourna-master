@@ -90,8 +90,6 @@ export class MatchService {
     eventDates: EventDate[],
   ): Map<EventDate, LocalTime[][]> {
     const numMatch = matches.length;
-
-    // 1. Nếu số ngày nhiều hơn số trận, chỉ lấy đủ số trận ngày đầu tiên
     if (eventDates.length > numMatch) {
       eventDates = eventDates
         .sort((a, b) =>
@@ -109,7 +107,6 @@ export class MatchService {
       eventDates,
     );
 
-    // 2. Tổng slot khả dụng để check đủ hay không
     const totalSlots = Array.from(availableSlots.values()).reduce(
       (sum, val) => sum + val,
       0,
@@ -121,14 +118,12 @@ export class MatchService {
       );
     }
 
-    // 3. Sắp xếp ngày theo số slot giảm dần (để ngày nhiều slot gánh trận dư)
     const sortedDates = [...eventDates].sort((a, b) => {
       const slotA = availableSlots.get(a) ?? 0;
       const slotB = availableSlots.get(b) ?? 0;
       return slotB - slotA;
     });
 
-    // 4. Phân bổ số trận mỗi ngày sao cho chênh lệch <= 1
     const basePerDay = Math.floor(numMatch / totalDays);
     let extra = numMatch % totalDays;
 
@@ -137,13 +132,11 @@ export class MatchService {
       const assign = basePerDay + (extra > 0 ? 1 : 0);
       const available = availableSlots.get(day)!;
 
-      // Giới hạn theo slot khả dụng
       const finalAssign = Math.min(assign, available);
       matchesPerDay.set(day, finalAssign);
       if (extra > 0) extra--;
     }
 
-    // 5. Gán timeslot cho từng ngày
     const schedule = new Map<EventDate, LocalTime[][]>();
     for (const day of sortedDates) {
       const parsedDate = LocalDate.parse(day.date.toString());
@@ -158,7 +151,6 @@ export class MatchService {
 
         timeSlots.push([startTime, endTime]);
 
-        // Cập nhật cho trận kế tiếp
         startTime = endTime.plusMinutes(betweenTime);
         endTime = startTime.plusMinutes(duration);
       }
@@ -166,7 +158,6 @@ export class MatchService {
       schedule.set(day, timeSlots);
     }
 
-    // 6. Trả về Map đã sắp theo ngày
     return new Map(
       [...schedule.entries()].sort((a, b) =>
         LocalDate.parse(a[0].date.toString()).compareTo(
@@ -182,88 +173,80 @@ export class MatchService {
     duration: number,
   ): Promise<MatchDto[]> {
     const matchList: Match[] = [];
-    const usedTeamsByDate = new Map<number, Set<number>>(); // eventDate.id -> Set<teamId>
-    const eventDates = Array.from(schedule.keys());
-
-    for (const eventDate of eventDates) {
-      usedTeamsByDate.set(eventDate.id, new Set());
+    const remainingMatches = [...matches]; // Clone để xử lý
+    const usedTeamsByDate = new Map<number, Set<number>>();
+    const eventDates = Array.from(schedule.entries()).sort(([a], [b]) =>
+      LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
+    );
+  
+    // Initialize usedTeams map
+    for (const [eventDate] of eventDates) {
+      usedTeamsByDate.set(eventDate.id, new Set<number>());
     }
-
-    const remainingMatches = [...matches];
-
-    // Step 1: Cố gắng phân bổ theo constraint (1 đội không đá 2 trận/ngày)
-    for (const [eventDate, timeSlots] of schedule.entries()) {
+  
+    // Loop theo ngày -> slot -> tìm trận phù hợp
+    for (const [eventDate, timeSlots] of eventDates) {
       const teamSet = usedTeamsByDate.get(eventDate.id)!;
-
-      for (let i = 0; i < timeSlots.length; i++) {
-        const slot = timeSlots[i];
-
-        const matchIndex = remainingMatches.findIndex(
+  
+      for (const [startTime, endTime] of timeSlots) {
+        // Ưu tiên chọn trận không trùng đội trong ngày
+        let matchIndex = remainingMatches.findIndex(
           ([teamA, teamB]) =>
             !teamSet.has(teamA.teamId) && !teamSet.has(teamB.teamId),
         );
-
-        if (matchIndex !== -1) {
-          const [teamOne, teamTwo] = remainingMatches.splice(matchIndex, 1)[0];
-          const match = new Match();
-          match.eventDate = { id: eventDate.id } as EventDate;
-          match.teamOne = { teamId: teamOne.teamId } as Team;
-          match.teamTwo = { teamId: teamTwo.teamId } as Team;
-          match.startTime = slot[0];
-          match.endTime = slot[1];
-          match.matchDuration = duration;
-          match.type = TypeMatch.MATCH;
-
-          matchList.push(match);
-          teamSet.add(teamOne.teamId);
-          teamSet.add(teamTwo.teamId);
+  
+        // Nếu không tìm thấy trận hợp lệ, chấp nhận trận bị trùng
+        if (matchIndex === -1) {
+          matchIndex = 0;
         }
+  
+        const [teamA, teamB] = remainingMatches.splice(matchIndex, 1)[0];
+  
+        // Đánh dấu đội đã đá ngày này
+        teamSet.add(teamA.teamId);
+        teamSet.add(teamB.teamId);
+  
+        const match = new Match();
+        match.eventDate = { id: eventDate.id } as EventDate;
+        match.teamOne = { teamId: teamA.teamId } as Team;
+        match.teamTwo = { teamId: teamB.teamId } as Team;
+        match.startTime = startTime;
+        match.endTime = endTime;
+        match.matchDuration = duration;
+        match.type = TypeMatch.MATCH;
+  
+        matchList.push(match);
+  
+        // Nếu hết trận thì dừng luôn
+        if (remainingMatches.length === 0) break;
       }
+  
+      if (remainingMatches.length === 0) break;
     }
-
-    // Step 2: Gán các trận còn lại dù có thể vi phạm constraint
+  
+    // Nếu vẫn còn trận chưa được xếp -> báo lỗi
     if (remainingMatches.length > 0) {
-      let j = 0;
-      for (const [eventDate, timeSlots] of schedule.entries()) {
-        for (
-          let i = 0;
-          i < timeSlots.length && remainingMatches.length > 0;
-          i++
-        ) {
-          const [teamOne, teamTwo] = remainingMatches.shift()!;
-          const match = new Match();
-          match.eventDate = { id: eventDate.id } as EventDate;
-          match.teamOne = { teamId: teamOne.teamId } as Team;
-          match.teamTwo = { teamId: teamTwo.teamId } as Team;
-          match.startTime = timeSlots[i][0];
-          match.endTime = timeSlots[i][1];
-          match.matchDuration = duration;
-          match.type = TypeMatch.MATCH;
-
-          matchList.push(match);
-          j++;
-        }
-      }
-    }
-
-    await this.matchRepository.saveAll(matchList);
-
-    // Fetch and convert all matches by eventDate
-    const matchDTOs: MatchDto[] = [];
-    for (const eventDate of schedule.keys()) {
-      const lastMatches = await this.matchRepository.getAllByEventDateId(
-        eventDate.id,
+      const teamA = remainingMatches[0][0];
+      const teamB = remainingMatches[0][1];
+      throw new BadRequestException(
+        `Không thể xếp đủ tất cả các trận. Ví dụ: ${teamA.teamName} vs ${teamB.teamName} chưa được xếp.`,
       );
+    }
+  
+    await this.matchRepository.saveAll(matchList);
+  
+    const matchDTOs: MatchDto[] = [];
+    for (const [eventDate] of eventDates) {
+      const matches = await this.matchRepository.getAllByEventDateId(eventDate.id);
       const dtos = await Promise.all(
-        lastMatches.map((match) =>
-          this.matchUtils.convertMatchToMatchDTO(match),
-        ),
+        matches.map((match) => this.matchUtils.convertMatchToMatchDTO(match)),
       );
       matchDTOs.push(...dtos);
     }
-
+  
     return matchDTOs;
   }
+  
 
   async dragAndDropMatch(
     matchId: number,

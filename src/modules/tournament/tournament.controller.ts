@@ -81,6 +81,12 @@ export class TournamentController {
     return SuccessResponse(true, 1, data, 'Tournament updated successfully');
   }
 
+  @Post(':id/generate-groups')
+  async generateGroup(@Param('id') id: number) {
+    const data = await this.tournamentService.generateGroup(id);
+    return SuccessResponse(true, 1, data, 'Tournament generated successfully');
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   async remove(@Param('id') id: number) {

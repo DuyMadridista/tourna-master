@@ -51,6 +51,9 @@ export class Team {
   @JoinColumn({ name: 'tournament_id' })
   tournament: Tournament;
 
+  @Column({ nullable: true, length: 10 })
+  group: string;
+  
   @OneToMany(() => Player, (player) => player.team)
   players: Player[];
 

@@ -6,11 +6,12 @@ import { EventDateModule } from '../event-date/event-date.module';
 import { TournamentModule } from '../tournament/tournament.module';
 import { MatchUtils } from 'src/helper/match.utils';
 import { TeamModule } from '../team/team.module';
+import { MatchRepository } from '../match/match.repository';
 
 @Module({
   imports: [MatchModule, EventDateModule, TournamentModule, TeamModule],
   controllers: [GenerationController],
-  providers: [GenerationService, MatchUtils],
+  providers: [GenerationService, MatchUtils, MatchRepository],
   exports: [GenerationService],
 })
 export class GenerationModule {}

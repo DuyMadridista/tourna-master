@@ -31,6 +31,9 @@ export class TeamController {
     @Param('tournamentId') tournamentId: number,
     @Query('size') size: number = 10,
     @Query('page') page: number = 1,
+    @Query('sortValue') sortValue: string = 'teamName',
+    @Query('keyword') keyword: string ="",
+    @Query('sortType') sortType: 'ASC' | 'DESC' = 'ASC',
   ): Promise<SuccessResponseDto<TeamPlayerDto[]>> {
     const totalTeamRecords =
       await this.teamService.getTotalRecordsForTournament(tournamentId);
@@ -38,6 +41,9 @@ export class TeamController {
       tournamentId,
       page - 1,
       size,
+      sortValue,
+      sortType,
+      keyword,
     );
 
     return SuccessResponse(

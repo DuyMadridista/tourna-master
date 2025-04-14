@@ -12,6 +12,9 @@ import { LocalDate, LocalTime } from '@js-joda/core';
 import { EventDate } from '../event-date/entities/event-date.entity';
 import { Match } from '../match/entities/match.entity';
 import { SuccessResponse } from 'src/helper/OkResponse';
+import { Team } from '../team/entities/team.entity';
+import { TypeMatch } from 'src/enums/match-type.enum';
+import { MatchRepository } from '../match/match.repository';
 
 @Injectable()
 export class GenerationService {
@@ -20,6 +23,7 @@ export class GenerationService {
     private readonly eventDateService: EventDateService,
     private readonly tournamentService: TournamentService,
     private readonly matchUtils: MatchUtils,
+    private readonly matchRepository: MatchRepository,
   ) {}
 
   async generate(
@@ -131,7 +135,224 @@ export class GenerationService {
     if (warningMessage) response.additionalData({ warningMessage });
     return response;
   }
+//   async generate(
+//     tournamentId: number,
+//     duration: number,
+//     betweenTime: number,
+//     startTime: LocalTime,
+//     endTime: LocalTime,
+//   ): Promise<SuccessResponseDto<GenerationDto[]>> {
+//     // STEP 1: Validate tournament and configuration
+//     const tournament = await this.tournamentService.findTournamentById(tournamentId);
+//     if (!tournament) throw new BadRequestException('Tournament not found');
+//     if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
+//       throw new BadRequestException('Cannot generate schedule for this tournament');
+//     }
+  
+//     // Update tournament config
+//     tournament.matchDuration = duration;
+//     tournament.timeBetween = betweenTime;
+//     tournament.startTimeDefault = startTime.toString();
+//     tournament.endTimeDefault = endTime.toString();
+//     if (tournament.status === TournamentStatus.NEED_INFORMATION) tournament.status = TournamentStatus.READY;
+//     await this.tournamentService.save(tournament);
+  
+//     // STEP 2: Clean old data and retrieve fresh data
+//     await this.matchService.deleteAllMatchByTournamentId(tournamentId);
+//     const matches = await this.matchService.matchList(tournamentId);
+//     const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
+//     if (!eventDates.length) throw new BadRequestException('Event date is empty, please add them');
+  
+//     // STEP 3: Validate match structure and round robin correctness
+//     const teamSet = new Set<number>();
+//     matches.forEach(([a, b]) => {
+//       if (a.teamId === b.teamId) throw new BadRequestException('A team cannot play against itself');
+//       teamSet.add(a.teamId);
+//       teamSet.add(b.teamId);
+//     });
+//     const totalTeams = teamSet.size;
+//     const expectedMatches = (totalTeams * (totalTeams - 1)) / 2;
+//     if (matches.length !== expectedMatches) {
+//       throw new BadRequestException(`Invalid match count for Single Round Robin. Expected ${expectedMatches} matches but got ${matches.length}.`);
+//     }
+  
+//     // STEP 4: Normalize and sort event dates
+//     eventDates.forEach(d => {
+//       d.startTime = startTime;
+//       d.endTime = endTime;
+//     });
+//     await this.eventDateService.saveAll(eventDates);
+//     const sortedEventDates = [...eventDates].sort((a, b) => LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString())));
+  
+//     // STEP 5: Generate time slots
+//     let globalSlotId = 0;
+//     const timeSlots = sortedEventDates.flatMap((date, day) => {
+//       const slots = [];
+//       let currentTime = startTime;
 
+//       while (true) {
+//         const slotEnd = currentTime.plusMinutes(duration);
+//         if (slotEnd.isBefore(currentTime) || slotEnd.isAfter(endTime)) break;
+  
+//         slots.push({
+//           id: globalSlotId++,
+//           eventDate: date,
+//           startTime: currentTime,
+//           endTime: slotEnd,
+//           day,
+//         });
+  
+//         currentTime = currentTime.plusMinutes(duration + betweenTime);
+//       }
+  
+//       return slots;
+//     });
+  
+//     // STEP 6: Build conflict graph
+//     const conflictGraph = new Map<number, Set<number>>();
+//     matches.forEach(([a1, b1], i) => {
+//       conflictGraph.set(i, new Set());
+//       matches.forEach(([a2, b2], j) => {
+//         if (i !== j && [a1.teamId, b1.teamId].some(id => id === a2.teamId || id === b2.teamId)) {
+//           conflictGraph.get(i)!.add(j);
+//         }
+//       });
+//     });
+  
+// // STEP 7: Assign slots using greedy coloring with hard constraints, allow soft constraint fallback
+// const matchToSlot = new Map<number, number>();
+// const teamDayMap = new Map<number, Set<number>>(); // Track which days teams are scheduled to play
+// const usedSlots = new Set<number>();
+// const avgPerDay = Math.ceil(matches.length / sortedEventDates.length);
+
+// // Create an array to track the number of matches scheduled for each day
+// const matchCountPerDay = Array(sortedEventDates.length).fill(0);
+
+// // Create a sorted list of available days, from the one with the least number of matches scheduled
+// const availableDays = sortedEventDates.map((_, dayIndex) => dayIndex).sort((a, b) => matchCountPerDay[a] - matchCountPerDay[b]);
+
+// // STEP: Create matchOrder for scheduling
+// // matchOrder is the sorted array of match indices, sorted by the number of conflicts for each match
+// const matchOrder = [...Array(matches.length).keys()].sort((a, b) => {
+//   const conflictsA = conflictGraph.get(a)?.size || 0;
+//   const conflictsB = conflictGraph.get(b)?.size || 0;
+//   return conflictsB - conflictsA;  // Sort descending by conflict count (more conflicts means higher priority)
+// });
+
+// // Function to check if we can assign a match to a day based on the number of matches already scheduled
+// const canAssignToDay = (day: number, maxMatchesPerDay: number): boolean => {
+//   return matchCountPerDay[day] < maxMatchesPerDay;
+// };
+
+// // Try to assign matches to days, considering the number of matches already scheduled per day
+// for (const matchIdx of matchOrder) {
+//   const [a, b] = matches[matchIdx];
+//   let assigned = false;
+
+//   // Try to assign match to a day with the least number of matches
+//   for (const day of availableDays) {
+//     if (!assigned && canAssignToDay(day, avgPerDay)) {
+//       for (const slot of timeSlots.filter(s => s.day === day)) {
+//         const sameTimeConflict = [...matchToSlot.entries()].some(([idx, sId]) =>
+//           sId === slot.id && conflictGraph.get(matchIdx)?.has(idx)
+//         );
+//         const teamPlayedToday =
+//           (teamDayMap.get(a.teamId)?.has(slot.day) || false) ||
+//           (teamDayMap.get(b.teamId)?.has(slot.day) || false);
+
+//         if (!usedSlots.has(slot.id) && !sameTimeConflict && !teamPlayedToday) {
+//           matchToSlot.set(matchIdx, slot.id);
+//           usedSlots.add(slot.id);
+//           teamDayMap.set(a.teamId, new Set([...(teamDayMap.get(a.teamId) || []), slot.day]));
+//           teamDayMap.set(b.teamId, new Set([...(teamDayMap.get(b.teamId) || []), slot.day]));
+//           matchCountPerDay[day]++;  // Increment the match count for the assigned day
+//           assigned = true;
+//           break;
+//         }
+//       }
+//     }
+
+//     if (assigned) break;
+//   }
+
+//   // If not assigned with soft constraint, fallback to assignment without checking max matches per day
+//   if (!assigned) {
+//     for (const slot of timeSlots) {
+//       const sameTimeConflict = [...matchToSlot.entries()].some(([idx, sId]) =>
+//         sId === slot.id && conflictGraph.get(matchIdx)?.has(idx)
+//       );
+//       const teamPlayedToday =
+//         (teamDayMap.get(a.teamId)?.has(slot.day) || false) ||
+//         (teamDayMap.get(b.teamId)?.has(slot.day) || false);
+
+//       if (!usedSlots.has(slot.id) && !sameTimeConflict && !teamPlayedToday) {
+//         matchToSlot.set(matchIdx, slot.id);
+//         usedSlots.add(slot.id);
+//         teamDayMap.set(a.teamId, new Set([...(teamDayMap.get(a.teamId) || []), slot.day]));
+//         teamDayMap.set(b.teamId, new Set([...(teamDayMap.get(b.teamId) || []), slot.day]));
+//         matchCountPerDay[slot.day]++;  // Increment the match count for the assigned day
+//         assigned = true;
+//         break;
+//       }
+//     }
+//   }
+
+//   // Ensure a match is assigned even if the constraints are violated (teams can play twice a day if needed)
+//   if (!assigned) {
+//     const lastAssignedSlotId = [...matchToSlot.values()].pop();
+//     const lastAssignedSlot = timeSlots.find(slot => slot.id === lastAssignedSlotId);
+
+//     if (lastAssignedSlot) {
+//       const nextAvailableSlot = timeSlots.find(slot => 
+//         !usedSlots.has(slot.id) && slot.startTime.isAfter(lastAssignedSlot.startTime)
+//       );
+
+//       if (nextAvailableSlot) {
+//         matchToSlot.set(matchIdx, nextAvailableSlot.id);
+//         usedSlots.add(nextAvailableSlot.id);
+//         teamDayMap.set(a.teamId, new Set([...(teamDayMap.get(a.teamId) || []), nextAvailableSlot.day]));
+//         teamDayMap.set(b.teamId, new Set([...(teamDayMap.get(b.teamId) || []), nextAvailableSlot.day]));
+//         matchCountPerDay[nextAvailableSlot.day]++;  // Increment the match count for the assigned day
+//       }
+//     }
+//   }
+// }
+
+
+  
+//     // STEP 8: Save matches
+//     const matchEntities = Array.from(matchToSlot.entries()).map(([idx, slotId]) => {
+//       const slot = timeSlots[slotId];
+//       const [a, b] = matches[idx];
+//       const match = new Match();
+//       match.teamOne = { teamId: a.teamId } as Team;
+//       match.teamTwo = { teamId: b.teamId } as Team;
+//       match.eventDate = { id: slot.eventDate.id } as EventDate;
+//       match.startTime = slot.startTime;
+//       match.endTime = slot.endTime;
+//       match.matchDuration = duration;
+//       match.type = TypeMatch.MATCH;
+//       return match;
+//     });
+//     await this.matchRepository.saveAll(matchEntities);
+  
+//     // STEP 9: Return response DTOs
+//     const matchDtos: MatchDto[] = [];
+//     for (const date of sortedEventDates) {
+//       const dateMatches = await this.matchRepository.getAllByEventDateId(date.id);
+//       const dtos = await Promise.all(dateMatches.map(m => this.matchUtils.convertMatchToMatchDTO(m)));
+//       matchDtos.push(...dtos);
+//     }
+//     const generations = await Promise.all(
+//       sortedEventDates.map(date => this.matchUtils.createGeneration(date, matchDtos))
+//     );
+  
+//     return SuccessResponse(true, generations.length, generations);
+//   }
+  
+  
+  
+  
   async updateGeneration(
     matchId: number,
     eventDateIdSelected: number,

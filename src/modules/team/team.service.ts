@@ -30,7 +30,10 @@
       tournamentId: number,
       page: number,
       size: number,
-    ): Promise<TeamPlayerDto[]> {
+      sortBy: string,
+      sortOrder: 'ASC' | 'DESC',
+      search: string,
+    ): Promise<any[]> {
       const skip = page * size;
       const teams = await this.teamRepository
         .createQueryBuilder('team')
@@ -40,19 +43,21 @@
         .addSelect('team.tier', 'tier')
         .addSelect('team.leaderName', 'leaderName')
         .addSelect('team.leaderEmail', 'leaderEmail')
+        .addSelect('team.group', 'group')
         .addSelect('team.leaderPhoneNumber', 'leaderPhoneNumber')
         .addSelect('COUNT(player.playerId)', 'playerCount')
         .where('team.tournament_id = :tournamentId', { tournamentId })
         .groupBy('team.id')
         .addGroupBy('team.teamName')
-        .orderBy('team.createdAt', 'DESC')
+        .orderBy(`team.${sortBy}`, sortOrder)
+        .andWhere('team.name LIKE :search', { search: `%${search}%` })
         .limit(size)
         .offset(skip)
         .getRawMany();
-
+        
       return teams.map(
         (team) =>
-          new TeamPlayerDto(team.teamId, team.teamName, team.tier, team.leaderName, team.leaderEmail, team.leaderPhoneNumber, Number(team.playerCount)),
+          new TeamPlayerDto(team.teamId, team.teamName, team.tier,team.group, team.leaderName, team.leaderEmail, team.leaderPhoneNumber, Number(team.playerCount)),
       );
     }
 
@@ -201,5 +206,9 @@
         teams.push(newTeam);
       }
       return teams;
+    }
+
+    async saveAll(teams: Team[]): Promise<Team[]> {
+      return this.teamRepository.save(teams);
     }
   }

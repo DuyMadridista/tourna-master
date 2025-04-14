@@ -26,6 +26,7 @@ import { EventDate } from '../event-date/entities/event-date.entity';
 import { LocalDate, LocalTime } from '@js-joda/core';
 import { CurrentUserProvider } from 'src/helper/current-user.provider';
 import { TournamentDto } from './dto/tournament.dto';
+import { Team } from '../team/entities/team.entity';
 // import { OrganizerTournamentService } from '../organizer-tournament/organizer-tournament.service';
 
 @Injectable()
@@ -410,4 +411,54 @@ export class TournamentService {
   public async save(tournament: Tournament): Promise<Tournament> {
     return this.tournamentRepository.save(tournament);
   }
+  public async generateGroup(tournamentId: number): Promise<any> {
+    const tournament = await this.tournamentRepository.findTournamentByIdAndNotDeleted(tournamentId);
+    if (!tournament) {
+      throw new NotFoundException('Tournament not found');
+    }
+  
+    const teams = await this.teamService.getAllTeamByTournamentId(tournamentId);
+    if (!teams || teams.length === 0) {
+      throw new BadRequestException('No teams found for this tournament');
+    }
+  
+    const numberOfGroups = tournament.numberOfGroups;
+    const teamsPerGroup = tournament.teamsPerGroup;
+  
+    if (!numberOfGroups || !teamsPerGroup) {
+      throw new BadRequestException('Group configuration is missing');
+    }
+  
+    if (teams.length !== numberOfGroups * teamsPerGroup) {
+      throw new BadRequestException(`Number of teams (${teams.length}) does not match numberOfGroups x teamsPerGroup`);
+    }
+
+    const sortedTeams = [...teams].sort((a, b) => a.tier - b.tier);
+  
+    const groupNames = Array.from({ length: numberOfGroups }, (_, i) => String.fromCharCode(65 + i));
+  
+    const groupedTeams: Record<string, Team[]> = {};
+    groupNames.forEach((group) => (groupedTeams[group] = []));
+  
+    let index = 0;
+    let forward = true;
+    while (index < sortedTeams.length) {
+      for (let i = 0; i < numberOfGroups && index < sortedTeams.length; i++) {
+        const groupIndex = forward ? i : numberOfGroups - 1 - i;
+        const groupName = groupNames[groupIndex];
+        const team = sortedTeams[index++];
+        team.group = groupName;
+        groupedTeams[groupName].push(team);
+      }
+      forward = !forward;
+    }
+  
+    await this.teamService.saveAll(sortedTeams);
+  
+    return {
+      success: true,
+      groupedTeams,
+    };
+  }
+  
 }
