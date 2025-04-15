@@ -28,10 +28,11 @@ export class MatchUtils {
   async convertMatchToMatchDTO(match: Match): Promise<MatchDto> {
     const matchDTO = new MatchDto();
     matchDTO.id = match.id;
-    if (match.type === TypeMatch.MATCH) {
+    if (match.type === TypeMatch.MATCH || match.type === TypeMatch.GROUP) {
       matchDTO.teamOne = match.teamOne;
       matchDTO.teamTwo = match.teamTwo;
     }
+    matchDTO.group = match.teamOne?.group || null;
     matchDTO.timeDuration = match.matchDuration;
     matchDTO.startTime = match.startTime;
     matchDTO.endTime = match.endTime;

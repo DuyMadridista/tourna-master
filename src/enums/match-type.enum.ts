@@ -2,6 +2,7 @@ export enum TypeMatch {
   EVENT = 'EVENT',
   MATCH = 'MATCH',
   GROUP = 'GROUP',
+  KNOCKOUT = 'KNOCKOUT',
   QUARTER_FINAL = 'QUARTER_FINAL',
   SEMI_FINAL = 'SEMI_FINAL',
   FINAL = 'FINAL',

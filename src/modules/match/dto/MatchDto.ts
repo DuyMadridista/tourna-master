@@ -50,6 +50,8 @@ export class MatchDto {
   @IsInt()
   timeDuration: number;
 
+  group ?:string;
+
   constructor(partial?: Partial<MatchDto>) {
     if (partial) {
       Object.assign(this, partial);

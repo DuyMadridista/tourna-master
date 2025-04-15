@@ -79,13 +79,13 @@ export class MatchController {
   async updateMatchDetails(
     @Param('tournamentId') tournamentId: number,
     @Param('matchID') matchID: number,
-    @Body() updateMatchDto: matchEntity.Match,
+    @Body() updateMatchDto: any,
   ) {
     return this.matchService.updateMatchDetails(
       tournamentId,
       matchID,
-      updateMatchDto.teamOne.teamId,
-      updateMatchDto.teamTwo.teamId,
+      updateMatchDto.teamOneId,
+      updateMatchDto.teamTwoId,
       updateMatchDto.matchDuration,
     );
   }

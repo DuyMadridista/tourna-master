@@ -38,7 +38,7 @@ export class GenerationController {
       );
     }
 
-    return await this.generationService.generate(
+    return await this.generationService.generateMatch(
       tournamentId,
       request.duration,
       request.betweenTime,
@@ -46,6 +46,31 @@ export class GenerationController {
       end,
     );
   }
+
+  // @Post('group-stage/:tournamentId')
+  // async generateGroupStage(
+  //   @Param('tournamentId') tournamentId: number,
+  //   @Body() request: GenerationRequestDto,
+  // ) {
+  //   const { startTime, endTime } = request;
+  //   const start = LocalTime.parse(startTime.toString());
+  //   const end = LocalTime.parse(endTime.toString());
+
+  //   if (!start.isBefore(end)) {
+  //     throw new HttpException(
+  //       'Start time or end time invalid',
+  //       HttpStatus.BAD_REQUEST,
+  //     );
+  //   }
+
+  //   return await this.generationService.generateGroupStage(
+  //     tournamentId,
+  //     request.duration,
+  //     request.betweenTime,
+  //     start,
+  //     end,
+  //   );
+  // }
 
   @Put('update')
   async updateGeneration(

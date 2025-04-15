@@ -19,11 +19,11 @@ export class Match {
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;
 
-  @ManyToOne(() => Team, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Team, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'team_one_id' })
   teamOne: Team;
 
-  @ManyToOne(() => Team, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Team, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'team_two_id' })
   teamTwo: Team;
 

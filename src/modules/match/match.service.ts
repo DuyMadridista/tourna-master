@@ -523,17 +523,6 @@ export class MatchService {
     if (!eventDate) {
       throw new NotFoundException('Event date not found');
     }
-
-    const now = LocalTime.now();
-    const nowDate = LocalDate.now();
-
-    if (
-      eventDate.date.isBefore(nowDate) ||
-      (eventDate.date.equals(nowDate) && match.startTime.isBefore(now))
-    ) {
-      throw new BadRequestException('This match is finished');
-    }
-
     if (matchDuration <= 0) {
       throw new BadRequestException('Match duration must be greater than 0');
     }

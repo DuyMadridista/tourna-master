@@ -19,6 +19,7 @@ export class MatchRepository extends Repository<Match> {
     return this.createQueryBuilder('match')
       .leftJoinAndSelect('match.teamOne', 'teamOne')
       .leftJoinAndSelect('match.teamTwo', 'teamTwo')
+      .leftJoinAndSelect('match.eventDate', 'eventDate')
       .where('match.id = :id', { id })
       .getOne();
   }
@@ -117,13 +118,15 @@ export class MatchRepository extends Repository<Match> {
     eventDateId: number,
     startTime: LocalTime,
   ): Promise<Match[]> {
+    const startTimeStr = startTime.toString(); // 'HH:mm' hoặc 'HH:mm:ss' tùy JS-Joda
     return this.createQueryBuilder('match')
       .innerJoin('match.eventDate', 'eventDate')
       .where('eventDate.id = :eventDateId', { eventDateId })
-      .andWhere('match.start_time > :startTime', { startTime })
+      .andWhere('match.start_time > :startTime', { startTime: startTimeStr })
       .orderBy('match.start_time', 'ASC')
       .getMany();
   }
+  
 
   async getLeaderBoard(tournamentId: number): Promise<LeaderBoardDto[]> {
     return this.createQueryBuilder('match')
