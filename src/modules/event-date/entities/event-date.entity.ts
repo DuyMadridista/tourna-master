@@ -11,6 +11,7 @@ import { Tournament } from '../../tournament/entities/tournament.entity';
 import { Match } from '../../match/entities/match.entity';
 import { LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
 import { Transform } from 'class-transformer';
+import { Slot } from './slot.entity';
 
 @Entity('event_dates')
 export class EventDate {
@@ -57,4 +58,7 @@ export class EventDate {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: LocalDateTime;
+
+  @OneToMany(() => Slot, (slot) => slot.eventDate, { cascade: true })
+slots: Slot[];
 }

@@ -7,12 +7,14 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Team } from '../../team/entities/team.entity';
 import { EventDate } from '../../event-date/entities/event-date.entity';
 import { TypeMatch } from '../../../enums/match-type.enum';
 import { LocalTime } from '@js-joda/core';
 import { PlayerMatch } from 'src/modules/player-match/player-match.entity';
+import { Slot } from 'src/modules/event-date/entities/slot.entity';
 
 @Entity('matches')
 export class Match {
@@ -63,6 +65,10 @@ export class Match {
   })
   @JoinColumn({ name: 'event_date_id' })
   eventDate: EventDate;
+
+  @OneToOne(() => Slot, (slot) => slot.match, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'slotId' })
+  slot: Slot;
 
   @Column({ name: 'title', type: 'varchar', length: 100, nullable: true })
   title: string;
