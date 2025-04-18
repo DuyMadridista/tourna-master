@@ -60,6 +60,7 @@ export class PlayerController {
     const newPlayer = await this.playerService.createPlayer(
       teamId,
       playerDto.playerName,
+      playerDto.number,
       playerDto.dateOfBirth.toString(),
       playerDto.phone,
     );

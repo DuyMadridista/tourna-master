@@ -6,6 +6,9 @@ export class PlayerRequestDto {
   playerName: string;
 
   @IsNotEmpty()
+  number: number;
+
+  @IsNotEmpty()
   @IsDate()
   dateOfBirth: Date;
 

@@ -53,6 +53,7 @@ export class PlayerService {
   async createPlayer(
     teamId: number,
     playerName: string,
+    number: number,
     dob: string,
     phoneNumber: string,
   ): Promise<Player> {
@@ -65,6 +66,7 @@ export class PlayerService {
     const newPlayer = this.playerRepository.create({
       team: { teamId } as Team,
       playerName: playerName.trim(),
+      number: number,
       dateOfBirth: dob,
       phone: phoneNumber,
       createdAt: new Date(),
@@ -143,6 +145,7 @@ export class PlayerService {
 
     for (const item of data) {
       const playerName = item['Player Name']?.trim();
+      const number = item['Number'];
       const dob = item['Date of Birth'];
       const date = Math.round((dob - 25569) * 86400 * 1000);
       const dateOfBirth = new Date(date);
@@ -151,6 +154,7 @@ export class PlayerService {
       const newPlayer = await this.createPlayer(
         teamId,
         playerName,
+        number,
         dateOfBirth.toString(),
         phone,
       );

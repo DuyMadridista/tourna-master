@@ -225,6 +225,7 @@ export class GenerationService {
     // STEP 4: Generate group stage matches
     const matchEntities: Match[] = [];
     let slotIndex = 0;
+    let lastGroupSlotDay = -1;
   
     for (const [groupName, groupTeams] of groupedTeams.entries()) {
       const groupMatches: [Team, Team][] = [];
@@ -274,6 +275,7 @@ export class GenerationService {
               teamDayMap.set(teamA.teamId, new Set([...(teamDayMap.get(teamA.teamId) || []), day]));
               teamDayMap.set(teamB.teamId, new Set([...(teamDayMap.get(teamB.teamId) || []), day]));
               matchCountPerDay[day]++;
+              lastGroupSlotDay = Math.max(lastGroupSlotDay, day);
               assigned = true;
               break;
             }
@@ -291,6 +293,7 @@ export class GenerationService {
           match.matchDuration = duration;
           match.type = TypeMatch.GROUP;
           matchEntities.push(match);
+          lastGroupSlotDay = Math.max(lastGroupSlotDay, slot.day);
         }
       }
     }
@@ -301,20 +304,39 @@ export class GenerationService {
     const totalKnockoutTeams = tournament.numberOfGroups * tournament.advancePerGroup;
     const totalKnockoutMatches = totalKnockoutTeams - 1;
   
+    // Get knockout slots after group stage
+    const knockoutSlots = timeSlots.filter(slot => slot.day > lastGroupSlotDay);
+    if (knockoutSlots.length < totalKnockoutMatches) {
+      throw new BadRequestException('Not enough time slots for knockout matches after group stage');
+    }
+  
+    // Group slots by day
+    const slotsByDay = new Map<number, typeof knockoutSlots>();
+    for (const slot of knockoutSlots) {
+      if (!slotsByDay.has(slot.day)) {
+        slotsByDay.set(slot.day, []);
+      }
+      slotsByDay.get(slot.day)!.push(slot);
+    }
+  
+    const knockoutDays = [...slotsByDay.keys()].sort((a, b) => a - b);
     const knockoutMatches: Match[] = [];
     let currentRoundTeamCount = totalKnockoutTeams;
     let round = 1;
-    let matchOrder = 0;
+    let dayIndex = 0;
   
     while (currentRoundTeamCount >= 2) {
       const matchesInRound = Math.floor(currentRoundTeamCount / 2);
   
       for (let i = 0; i < matchesInRound; i++) {
-        if (slotIndex >= timeSlots.length) {
-          throw new BadRequestException('Not enough time slots for knockout matches');
+        const currentDay = knockoutDays[dayIndex % knockoutDays.length];
+        const availableSlots = slotsByDay.get(currentDay)!;
+        const slot = availableSlots.shift();
+  
+        if (!slot) {
+          throw new BadRequestException(`Not enough slots on day ${currentDay} for knockout matches`);
         }
   
-        const slot = timeSlots[slotIndex++];
         const match = new Match();
         match.teamOne = null;
         match.teamTwo = null;
@@ -323,10 +345,9 @@ export class GenerationService {
         match.endTime = slot.endTime;
         match.matchDuration = duration;
         match.type = TypeMatch.KNOCKOUT;
-        // match.round = round;
-        // match.matchOrder = matchOrder++;
-  
         knockoutMatches.push(match);
+  
+        dayIndex++;
       }
   
       currentRoundTeamCount = matchesInRound;
@@ -350,6 +371,8 @@ export class GenerationService {
   
     return SuccessResponse(true, generations.length, generations);
   }
+  
+  
   
   
 
