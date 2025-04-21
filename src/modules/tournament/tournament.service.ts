@@ -423,14 +423,9 @@ export class TournamentService {
     }
   
     const numberOfGroups = tournament.numberOfGroups;
-    const teamsPerGroup = tournament.teamsPerGroup;
   
-    if (!numberOfGroups || !teamsPerGroup) {
+    if (!numberOfGroups ) {
       throw new BadRequestException('Group configuration is missing');
-    }
-  
-    if (teams.length !== numberOfGroups * teamsPerGroup) {
-      throw new BadRequestException(`Number of teams (${teams.length}) does not match numberOfGroups x teamsPerGroup`);
     }
 
     const sortedTeams = [...teams].sort((a, b) => a.tier - b.tier);
