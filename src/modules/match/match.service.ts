@@ -908,4 +908,22 @@ export class MatchService {
       listPlayerMatch: result,
     };
   }
+
+  toDto(match: Match): MatchDto {
+    return new MatchDto({
+      id: match.id,
+      eventDateId: match.eventDate?.id,
+      teamOne: match.teamOne,
+      teamTwo: match.teamTwo,
+      teamOneResult: match.teamOneResult,
+      teamTwoResult: match.teamTwoResult,
+      startTime: match.startTime,
+      endTime: match.endTime,
+      title: match.title,
+      type: match.type,
+      timeDuration: match.matchDuration,
+      group: match.teamOne.group || null,
+    });
+  }
 }
+

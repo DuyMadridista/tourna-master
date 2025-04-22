@@ -4,6 +4,7 @@ import e from 'express';
 import { join } from 'path';
 import { Category } from 'src/modules/category/entities/category.entity';
 import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
+import { Slot } from 'src/modules/event-date/entities/slot.entity';
 import { Match } from 'src/modules/match/entities/match.entity';
 import { PlayerMatch } from 'src/modules/player-match/player-match.entity';
 import { Player } from 'src/modules/player/entities/player.entity';
@@ -20,7 +21,7 @@ const config = {
   password: `${process.env.DB_PASSWORD}`,
   database: `${process.env.DB_DATABASE}`,
   // entities: [join(__dirname, '**', 'entities/*.entity.{ts,js}')],
-  entities: [User, Tournament, EventDate, Match, Player, Team, Category, PlayerMatch],
+  entities: [User, Tournament, EventDate, Match, Player, Team, Category, PlayerMatch, Slot],
   migrations: [join(__dirname, '..', 'migrations/*.{ts,js}')],
   autoLoadEntities: true,
   synchronize: false,

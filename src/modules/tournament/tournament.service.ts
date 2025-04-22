@@ -249,11 +249,11 @@ export class TournamentService {
               'Cannot delete event date that is today or before',
             );
           }
-          if (await this.matchService.isHaveMatchInDate(eventDate.id)) {
-            throw new BadRequestException(
-              'Cannot delete event date that have match',
-            );
-          }
+          // if (await this.matchService.isHaveMatchInDate(eventDate.id)) {
+          //   throw new BadRequestException(
+          //     'Cannot delete event date that have match',
+          //   );
+          // }
           await this.eventDateService.deleteByEventDateId(eventDate.id);
         }
       }

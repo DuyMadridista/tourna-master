@@ -17,6 +17,9 @@ import { TypeMatch } from 'src/enums/match-type.enum';
 import { MatchRepository } from '../match/match.repository';
 import { TeamService } from '../team/team.service';
 import { TournamentFormat } from 'src/enums/tournament-format.enum';
+import { Slot } from '../event-date/entities/slot.entity';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class GenerationService {
@@ -27,6 +30,8 @@ export class GenerationService {
     private readonly teamService: TeamService,
     private readonly matchUtils: MatchUtils,
     private readonly matchRepository: MatchRepository,
+    @InjectRepository(Slot)
+    private readonly slotRepository: Repository<Slot>,
   ) {}
 
   // async generate(
@@ -353,6 +358,183 @@ export class GenerationService {
   
   
 
+  // async generate(
+  //   tournamentId: number,
+  //   duration: number,
+  //   betweenTime: number,
+  //   startTime: LocalTime,
+  //   endTime: LocalTime,
+  // ): Promise<SuccessResponseDto<GenerationDto[]>> {
+  //   // STEP 1: Validate and update tournament configuration
+  //   const tournament = await this.tournamentService.findTournamentById(tournamentId);
+  //   if (!tournament) throw new BadRequestException('Tournament not found');
+  //   if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
+  //     throw new BadRequestException('Cannot generate schedule for this tournament');
+  //   }
+  
+  //   tournament.matchDuration = duration;
+  //   tournament.timeBetween = betweenTime;
+  //   tournament.startTimeDefault = startTime.toString();
+  //   tournament.endTimeDefault = endTime.toString();
+  //   if (tournament.status === TournamentStatus.NEED_INFORMATION) tournament.status = TournamentStatus.READY;
+  //   await this.tournamentService.save(tournament);
+  
+  //   // STEP 2: Reset & prepare data
+  //   await this.matchService.deleteAllMatchByTournamentId(tournamentId);
+  //   const matches = await this.matchService.matchList(tournamentId);
+  //   const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
+  //   if (!eventDates.length) throw new BadRequestException('Event date is empty, please add them');
+  
+  //   const teamSet = new Set<number>();
+  //   matches.forEach(([a, b]) => {
+  //     if (a.teamId === b.teamId) throw new BadRequestException('A team cannot play against itself');
+  //     teamSet.add(a.teamId);
+  //     teamSet.add(b.teamId);
+  //   });
+  
+  //   const totalTeams = teamSet.size;
+  //   const expectedMatches = (totalTeams * (totalTeams - 1)) / 2;
+  //   if (matches.length !== expectedMatches) {
+  //     throw new BadRequestException(`Expected ${expectedMatches} matches but got ${matches.length}`);
+  //   }
+  
+  //   eventDates.forEach(d => {
+  //     d.startTime = startTime;
+  //     d.endTime = endTime;
+  //   });
+  //   await this.eventDateService.saveAll(eventDates);
+  
+  //   const sortedEventDates = [...eventDates].sort((a, b) =>
+  //     LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
+  //   );
+  
+  //   // STEP 3: Generate time slots
+  //   let globalSlotId = 0;
+  //   const timeSlots = sortedEventDates.flatMap((date, day) => {
+  //     const slots = [];
+  //     let currentTime = startTime;
+  
+  //     while (true) {
+  //       const slotEnd = currentTime.plusMinutes(duration);
+  //       if (slotEnd.isAfter(endTime)) break;
+  
+  //       slots.push({ id: globalSlotId++, eventDate: date, startTime: currentTime, endTime: slotEnd, day });
+  //       currentTime = currentTime.plusMinutes(duration + betweenTime);
+  //     }
+  
+  //     return slots;
+  //   });
+  
+  //   // STEP 4: Build conflict graph
+  //   const conflictGraph = new Map<number, Set<number>>();
+  //   matches.forEach(([a1, b1], i) => {
+  //     conflictGraph.set(i, new Set());
+  //     matches.forEach(([a2, b2], j) => {
+  //       if (i !== j && [a1.teamId, b1.teamId].some(t => t === a2.teamId || t === b2.teamId)) {
+  //         conflictGraph.get(i)!.add(j);
+  //       }
+  //     });
+  //   });
+  
+  //   // STEP 5: Assign matches to slots
+  //   const matchToSlot = new Map<number, number>();
+  //   const teamDayMap = new Map<number, Set<number>>();
+  //   const usedSlots = new Set<number>();
+  //   const matchCountPerDay = Array(sortedEventDates.length).fill(0);
+  //   const enoughDays = sortedEventDates.length >= totalTeams;
+  //   const maxMatchesPerTeamPerDay = enoughDays ? 1 : Infinity;
+  
+  //   const matchOrder = [...Array(matches.length).keys()].sort((a, b) =>
+  //     (conflictGraph.get(b)?.size ?? 0) - (conflictGraph.get(a)?.size ?? 0)
+  //   );
+  
+  //   for (const matchIdx of matchOrder) {
+  //     const [a, b] = matches[matchIdx];
+  //     let assigned = false;
+  
+  //     const dayPreference = [...Array(sortedEventDates.length).keys()].sort(
+  //       (d1, d2) => matchCountPerDay[d1] - matchCountPerDay[d2]
+  //     );
+  
+  //     for (const day of dayPreference) {
+  //       const teamAPlayed = teamDayMap.get(a.teamId)?.has(day) ?? false;
+  //       const teamBPlayed = teamDayMap.get(b.teamId)?.has(day) ?? false;
+  
+  //       if (
+  //         (teamAPlayed ? 1 : 0) < maxMatchesPerTeamPerDay &&
+  //         (teamBPlayed ? 1 : 0) < maxMatchesPerTeamPerDay
+  //       ) {
+  //         for (const slot of timeSlots.filter(s => s.day === day)) {
+  //           const hasConflict = [...matchToSlot.entries()].some(([otherIdx, slotId]) =>
+  //             slotId === slot.id && conflictGraph.get(matchIdx)?.has(otherIdx)
+  //           );
+  
+  //           if (!usedSlots.has(slot.id) && !hasConflict) {
+  //             matchToSlot.set(matchIdx, slot.id);
+  //             usedSlots.add(slot.id);
+  //             teamDayMap.set(a.teamId, new Set([...(teamDayMap.get(a.teamId) || []), day]));
+  //             teamDayMap.set(b.teamId, new Set([...(teamDayMap.get(b.teamId) || []), day]));
+  //             matchCountPerDay[day]++;
+  //             assigned = true;
+  //             break;
+  //           }
+  //         }
+  //       }
+  
+  //       if (assigned) break;
+  //     }
+  
+  //     // Relaxed constraint if no valid slot found
+  //     if (!assigned) {
+  //       for (const slot of timeSlots) {
+  //         const hasConflict = [...matchToSlot.entries()].some(([otherIdx, slotId]) =>
+  //           slotId === slot.id && conflictGraph.get(matchIdx)?.has(otherIdx)
+  //         );
+  
+  //         if (!usedSlots.has(slot.id) && !hasConflict) {
+  //           matchToSlot.set(matchIdx, slot.id);
+  //           usedSlots.add(slot.id);
+  //           teamDayMap.set(a.teamId, new Set([...(teamDayMap.get(a.teamId) || []), slot.day]));
+  //           teamDayMap.set(b.teamId, new Set([...(teamDayMap.get(b.teamId) || []), slot.day]));
+  //           matchCountPerDay[slot.day]++;
+  //           break;
+  //         }
+  //       }
+  //     }
+  //   }
+  
+  //   // STEP 6: Persist matches
+  //   const matchEntities = Array.from(matchToSlot.entries()).map(([idx, slotId]) => {
+  //     const slot = timeSlots[slotId];
+  //     const [a, b] = matches[idx];
+  //     const match = new Match();
+  //     match.teamOne = { teamId: a.teamId } as Team;
+  //     match.teamTwo = { teamId: b.teamId } as Team;
+  //     match.eventDate = { id: slot.eventDate.id } as EventDate;
+  //     match.startTime = slot.startTime;
+  //     match.endTime = slot.endTime;
+  //     match.matchDuration = duration;
+  //     match.type = TypeMatch.MATCH;
+  //     return match;
+  //   });
+  
+  //   await this.matchRepository.saveAll(matchEntities);
+  
+  //   // STEP 7: Build response DTO
+  //   const matchDtos: MatchDto[] = [];
+  //   for (const date of sortedEventDates) {
+  //     const dateMatches = await this.matchRepository.getAllByEventDateId(date.id);
+  //     const dtos = await Promise.all(dateMatches.map(m => this.matchUtils.convertMatchToMatchDTO(m)));
+  //     matchDtos.push(...dtos);
+  //   }
+  
+  //   const generations = await Promise.all(
+  //     sortedEventDates.map(date => this.matchUtils.createGeneration(date, matchDtos))
+  //   );
+  
+  //   return SuccessResponse(true, generations.length, generations);
+  // }
+  
   async generate(
     tournamentId: number,
     duration: number,
@@ -361,176 +543,287 @@ export class GenerationService {
     endTime: LocalTime,
   ): Promise<SuccessResponseDto<GenerationDto[]>> {
     // STEP 1: Validate and update tournament configuration
-    const tournament = await this.tournamentService.findTournamentById(tournamentId);
-    if (!tournament) throw new BadRequestException('Tournament not found');
-    if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
+    const tournament = await this.validateAndUpdateTournament(
+      tournamentId,
+      duration,
+      betweenTime,
+      startTime,
+      endTime,
+    );
+
+    // STEP 2: Reset & prepare data
+    const { matches, eventDates, totalTeams } = await this.resetAndPrepareData(tournamentId, startTime, endTime);
+    const matchPairs = matches as [Team, Team][];
+
+    // STEP 3: Generate time slots and save to DB
+    const timeSlots = await this.generateAndSaveTimeSlots(eventDates, duration, betweenTime, startTime, endTime);
+
+    // STEP 4: Build conflict graph
+    const conflictGraph = this.buildConflictGraph(matchPairs);
+
+    // STEP 5: Assign matches to slots
+    const matchToSlot = this.assignMatchesToSlots(
+      matchPairs,
+      timeSlots,
+      conflictGraph,
+      totalTeams,
+      eventDates.length,
+      eventDates,
+    );
+
+    // STEP 6: Persist matches
+    await this.persistMatches(matchPairs, matchToSlot, timeSlots, tournament.matchDuration);
+
+    // STEP 7: Build and return response DTO
+    return this.buildResponseDto(eventDates);
+  }
+
+  private async validateAndUpdateTournament(
+    tournamentId: number,
+    duration: number,
+    betweenTime: number,
+    startTime: LocalTime,
+    endTime: LocalTime,
+  ) {
+    const t = await this.tournamentService.findTournamentById(tournamentId);
+    if (!t) throw new BadRequestException('Tournament not found');
+    if (!TournamentStatusPermission.allowGenerateStatus.includes(t.status)) {
       throw new BadRequestException('Cannot generate schedule for this tournament');
     }
-  
-    tournament.matchDuration = duration;
-    tournament.timeBetween = betweenTime;
-    tournament.startTimeDefault = startTime.toString();
-    tournament.endTimeDefault = endTime.toString();
-    if (tournament.status === TournamentStatus.NEED_INFORMATION) tournament.status = TournamentStatus.READY;
-    await this.tournamentService.save(tournament);
-  
-    // STEP 2: Reset & prepare data
+
+    t.matchDuration = duration;
+    t.timeBetween = betweenTime;
+    t.startTimeDefault = startTime.toString();
+    t.endTimeDefault = endTime.toString();
+    if (t.status === TournamentStatus.NEED_INFORMATION) {
+      t.status = TournamentStatus.READY;
+    }
+    await this.tournamentService.save(t);
+    return t;
+  }
+
+  private async resetAndPrepareData(
+    tournamentId: number,
+    startTime: LocalTime,
+    endTime: LocalTime,
+  ) {
     await this.matchService.deleteAllMatchByTournamentId(tournamentId);
-    const matches = await this.matchService.matchList(tournamentId);
+    const rawMatches = await this.matchService.matchList(tournamentId);
     const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
-    if (!eventDates.length) throw new BadRequestException('Event date is empty, please add them');
-  
+    if (!eventDates.length) {
+      throw new BadRequestException('Event date is empty, please add them');
+    }
+
     const teamSet = new Set<number>();
-    matches.forEach(([a, b]) => {
-      if (a.teamId === b.teamId) throw new BadRequestException('A team cannot play against itself');
+    rawMatches.forEach(([a, b]) => {
+      if (a.teamId === b.teamId) {
+        throw new BadRequestException('A team cannot play against itself');
+      }
       teamSet.add(a.teamId);
       teamSet.add(b.teamId);
     });
-  
+
     const totalTeams = teamSet.size;
     const expectedMatches = (totalTeams * (totalTeams - 1)) / 2;
-    if (matches.length !== expectedMatches) {
-      throw new BadRequestException(`Expected ${expectedMatches} matches but got ${matches.length}`);
+    if (rawMatches.length !== expectedMatches) {
+      throw new BadRequestException(
+        `Expected ${expectedMatches} matches but got ${rawMatches.length}`,
+      );
     }
-  
-    eventDates.forEach(d => {
+
+    // Normalize eventDates
+    eventDates.forEach((d) => {
       d.startTime = startTime;
       d.endTime = endTime;
     });
     await this.eventDateService.saveAll(eventDates);
-  
-    const sortedEventDates = [...eventDates].sort((a, b) =>
-      LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
+
+    // Sort chronologically
+    const sortedDates = [...eventDates].sort((a, b) =>
+      LocalDate.parse(a.date.toString()).compareTo(
+        LocalDate.parse(b.date.toString()),
+      ),
     );
-  
-    // STEP 3: Generate time slots
-    let globalSlotId = 0;
-    const timeSlots = sortedEventDates.flatMap((date, day) => {
-      const slots = [];
-      let currentTime = startTime;
-  
-      while (true) {
-        const slotEnd = currentTime.plusMinutes(duration);
-        if (slotEnd.isAfter(endTime)) break;
-  
-        slots.push({ id: globalSlotId++, eventDate: date, startTime: currentTime, endTime: slotEnd, day });
-        currentTime = currentTime.plusMinutes(duration + betweenTime);
-      }
-  
-      return slots;
+
+    return { matches: rawMatches, eventDates: sortedDates, totalTeams };
+  }
+
+  private async generateAndSaveTimeSlots(
+    dates: EventDate[],
+    duration: number,
+    breakTime: number,
+    startTime: LocalTime,
+    endTime: LocalTime,
+  ) {
+
+    // Remove old slots
+    dates.forEach(async element => {
+      await this.slotRepository.delete({ eventDate: { id: element.id } });
     });
-  
-    // STEP 4: Build conflict graph
-    const conflictGraph = new Map<number, Set<number>>();
-    matches.forEach(([a1, b1], i) => {
-      conflictGraph.set(i, new Set());
-      matches.forEach(([a2, b2], j) => {
-        if (i !== j && [a1.teamId, b1.teamId].some(t => t === a2.teamId || t === b2.teamId)) {
-          conflictGraph.get(i)!.add(j);
+
+    let globalIndex = 0;
+    const slots: Slot[] = [];
+    dates.forEach((date, day) => {
+      let current = startTime;
+      while (true) {
+        const slotEnd = current.plusMinutes(duration);
+        if (slotEnd.isAfter(endTime)) break;
+
+        const slot = this.slotRepository.create({
+          slotIndex: globalIndex++,
+          eventDate: date,
+          _startTime: current.toString(),
+          _endTime: slotEnd.toString(),
+        });
+        
+        slots.push(slot);
+        current = current.plusMinutes(duration + breakTime);
+      }
+    });
+
+    return await this.slotRepository.save(slots);
+  }
+
+  private buildConflictGraph(
+    matches:  [Team, Team][],
+  ) {
+    const graph = new Map<number, Set<number>>();
+    matches.forEach((pair, i) => {
+      graph.set(i, new Set());
+      matches.forEach((otherPair, j) => {
+        if (i !== j) {
+          const overlap = [pair[0].teamId, pair[1].teamId].some(
+            (t) => t === otherPair[0].teamId || t === otherPair[1].teamId,
+          );
+          if (overlap) graph.get(i)!.add(j);
         }
       });
     });
-  
-    // STEP 5: Assign matches to slots
-    const matchToSlot = new Map<number, number>();
-    const teamDayMap = new Map<number, Set<number>>();
+    return graph;
+  }
+
+  private assignMatchesToSlots(
+    matches: [Team, Team][],
+    slots: Slot[],
+    graph: Map<number, Set<number>>,
+    totalTeams: number,
+    totalDays: number,
+    dates: EventDate[],
+  ) {
+    const enoughDays = totalDays >= totalTeams;
+    const maxPerDay = enoughDays ? 1 : Infinity;
+    const teamDay = new Map<number, Set<number>>();
+    const matchCount = Array(totalDays).fill(0);
+    const map = new Map<number, number>();
     const usedSlots = new Set<number>();
-    const matchCountPerDay = Array(sortedEventDates.length).fill(0);
-    const enoughDays = sortedEventDates.length >= totalTeams;
-    const maxMatchesPerTeamPerDay = enoughDays ? 1 : Infinity;
   
-    const matchOrder = [...Array(matches.length).keys()].sort((a, b) =>
-      (conflictGraph.get(b)?.size ?? 0) - (conflictGraph.get(a)?.size ?? 0)
+    // Order by most conflicts first
+    const order = [...graph.keys()].sort(
+      (a, b) => graph.get(b)!.size - graph.get(a)!.size,
     );
   
-    for (const matchIdx of matchOrder) {
-      const [a, b] = matches[matchIdx];
-      let assigned = false;
-  
-      const dayPreference = [...Array(sortedEventDates.length).keys()].sort(
-        (d1, d2) => matchCountPerDay[d1] - matchCountPerDay[d2]
+    order.forEach((idx) => {
+      const [a, b] = matches[idx];
+      const days = [...Array(totalDays).keys()].sort(
+        (d1, d2) => matchCount[d1] - matchCount[d2],
       );
+      let placed = false;
   
-      for (const day of dayPreference) {
-        const teamAPlayed = teamDayMap.get(a.teamId)?.has(day) ?? false;
-        const teamBPlayed = teamDayMap.get(b.teamId)?.has(day) ?? false;
-  
+      for (const day of days) {
         if (
-          (teamAPlayed ? 1 : 0) < maxMatchesPerTeamPerDay &&
-          (teamBPlayed ? 1 : 0) < maxMatchesPerTeamPerDay
+          (teamDay.get(a.teamId)?.has(day) ? 1 : 0) < maxPerDay &&
+          (teamDay.get(b.teamId)?.has(day) ? 1 : 0) < maxPerDay
         ) {
-          for (const slot of timeSlots.filter(s => s.day === day)) {
-            const hasConflict = [...matchToSlot.entries()].some(([otherIdx, slotId]) =>
-              slotId === slot.id && conflictGraph.get(matchIdx)?.has(otherIdx)
+          for (const slot of slots.filter(
+            (s) => s.eventDate.id === dates[day].id && !usedSlots.has(s.id),
+          )) {
+            const conflict = [...map.entries()].some(
+              ([otherIdx, slotId]) =>
+                slotId === slot.id && graph.get(idx)!.has(otherIdx),
             );
-  
-            if (!usedSlots.has(slot.id) && !hasConflict) {
-              matchToSlot.set(matchIdx, slot.id);
+            if (!conflict && !map.has(idx)) {
+              map.set(idx, slot.id);
               usedSlots.add(slot.id);
-              teamDayMap.set(a.teamId, new Set([...(teamDayMap.get(a.teamId) || []), day]));
-              teamDayMap.set(b.teamId, new Set([...(teamDayMap.get(b.teamId) || []), day]));
-              matchCountPerDay[day]++;
-              assigned = true;
+              matchCount[day]++;
+              teamDay.set(
+                a.teamId,
+                new Set([...(teamDay.get(a.teamId) || []), day]),
+              );
+              teamDay.set(
+                b.teamId,
+                new Set([...(teamDay.get(b.teamId) || []), day]),
+              );
+              placed = true;
               break;
             }
           }
         }
-  
-        if (assigned) break;
+        if (placed) break;
       }
-  
-      // Relaxed constraint if no valid slot found
-      if (!assigned) {
-        for (const slot of timeSlots) {
-          const hasConflict = [...matchToSlot.entries()].some(([otherIdx, slotId]) =>
-            slotId === slot.id && conflictGraph.get(matchIdx)?.has(otherIdx)
+
+      if (!placed) {
+        for (const slot of slots) {
+          if (usedSlots.has(slot.id)) continue;
+          const conflict = [...map.entries()].some(
+            ([otherIdx, slotId]) =>
+              slotId === slot.id && graph.get(idx)!.has(otherIdx),
           );
-  
-          if (!usedSlots.has(slot.id) && !hasConflict) {
-            matchToSlot.set(matchIdx, slot.id);
+          if (!conflict) {
+            map.set(idx, slot.id);
             usedSlots.add(slot.id);
-            teamDayMap.set(a.teamId, new Set([...(teamDayMap.get(a.teamId) || []), slot.day]));
-            teamDayMap.set(b.teamId, new Set([...(teamDayMap.get(b.teamId) || []), slot.day]));
-            matchCountPerDay[slot.day]++;
             break;
           }
         }
       }
-    }
-  
-    // STEP 6: Persist matches
-    const matchEntities = Array.from(matchToSlot.entries()).map(([idx, slotId]) => {
-      const slot = timeSlots[slotId];
-      const [a, b] = matches[idx];
-      const match = new Match();
-      match.teamOne = { teamId: a.teamId } as Team;
-      match.teamTwo = { teamId: b.teamId } as Team;
-      match.eventDate = { id: slot.eventDate.id } as EventDate;
-      match.startTime = slot.startTime;
-      match.endTime = slot.endTime;
-      match.matchDuration = duration;
-      match.type = TypeMatch.MATCH;
-      return match;
     });
   
-    await this.matchRepository.saveAll(matchEntities);
-  
-    // STEP 7: Build response DTO
-    const matchDtos: MatchDto[] = [];
-    for (const date of sortedEventDates) {
-      const dateMatches = await this.matchRepository.getAllByEventDateId(date.id);
-      const dtos = await Promise.all(dateMatches.map(m => this.matchUtils.convertMatchToMatchDTO(m)));
-      matchDtos.push(...dtos);
-    }
-  
-    const generations = await Promise.all(
-      sortedEventDates.map(date => this.matchUtils.createGeneration(date, matchDtos))
-    );
-  
-    return SuccessResponse(true, generations.length, generations);
+    return map;
   }
   
-  
+
+  private async persistMatches(
+    matches: [ { teamId: number } , { teamId: number } ][],
+    map: Map<number, number>,
+    slots: Slot[],
+    duration: number,
+  ) {
+    const entities: Match[] = [];
+    map.forEach((slotId, idx) => {
+      const slot = slots.find((s) => s.id === slotId)!;
+      const [a, b] = matches[idx];
+      const m = new Match();
+      m.teamOne = { teamId: a.teamId } as Team;
+      m.teamTwo = { teamId: b.teamId } as Team;
+      m.slot = slot;
+      m.startTime = slot.startTime;
+      m.endTime = slot.endTime;
+      m.matchDuration = duration;
+      m.eventDate = slot.eventDate;
+      m.type = TypeMatch.MATCH;
+      entities.push(m);
+    });
+    await this.matchService.saveAll(entities);
+  }
+
+  private async buildResponseDto(eventDates: EventDate[]) {
+    const dtos: GenerationDto[] = [];
+    for (const day of eventDates) {
+      const saved = await this.matchService.getMatchByEventDateId(day.id);
+      const matchDtos: MatchDto[] = await Promise.all(
+        saved.map((m) => this.matchService.toDto(m)),
+      );
+      dtos.push({
+        date: day.date,
+        startTime: day.startTime,
+        endTime: day.endTime,
+        matches: matchDtos,
+        eventDateId: day.id,
+      });
+    }
+    return SuccessResponse(true, dtos.length, dtos);
+  }
+
+
   
   
   
