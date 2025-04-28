@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
 import { MatchDto } from '../../match/dto/MatchDto';
 import { LocalTime, LocalDate } from '@js-joda/core';
+import { SlotDTO } from 'src/modules/event-date/dto/slot.dto';
 
 export class GenerationDto {
   @IsNotEmpty()
@@ -22,8 +23,9 @@ export class GenerationDto {
 
   @IsOptional()
   @ValidateNested({ each: true })
-  @Type(() => MatchDto)
-  matches?: MatchDto[];
+  @Type(() => SlotDTO)
+  slots?: SlotDTO[];
+
 
   constructor(partial?: Partial<GenerationDto>) {
     if (partial) {

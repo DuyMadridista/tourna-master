@@ -7,6 +7,8 @@ import { GenerationDto } from 'src/modules/generate/dto/GenerationDto';
 import { TypeMatch } from '../enums/match-type.enum';
 import { CommonHelper } from './common-helper';
 import { LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
+import { SlotDTO } from '../modules/event-date/dto/slot.dto';
+
 @Injectable()
 export class MatchUtils {
   constructor(private readonly teamService: TeamService) {}
@@ -39,12 +41,14 @@ export class MatchUtils {
     matchDTO.eventDateId = match.eventDate.id;
     matchDTO.type = match.type;
     matchDTO.title = match.title;
+    matchDTO.slotId = match.slot.id;
     return matchDTO;
   }
 
   async createGeneration(
     eventDate: EventDate | null,
     matchDTOs: MatchDto[],
+    SlotDTOs: SlotDTO[],
   ): Promise<GenerationDto> {
     const generationDTO = new GenerationDto();
     if (eventDate) {
@@ -52,12 +56,21 @@ export class MatchUtils {
       generationDTO.date = eventDate.date;
       generationDTO.startTime = eventDate.startTime;
       generationDTO.endTime = eventDate.endTime;
-      generationDTO.matches = matchDTOs.filter(
-        (match) => match.eventDateId === eventDate.id,
-      );
+      generationDTO.slots = SlotDTOs.filter(
+        (slot) => slot.eventDateId === eventDate.id,
+      ).map((slot) => {
+        // Tìm match theo slotId
+        const match = matchDTOs.find((m) => m.slotId === slot.id);
+        // Gán match vào slot
+        return new SlotDTO({
+          ...slot,
+          matches: match ? match : null,
+        });
+      });
     }
     return generationDTO;
   }
+
 
   public timeSheet(
     duration: number,

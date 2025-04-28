@@ -331,9 +331,9 @@ export class MatchService {
         date: eventDate.date,
         startTime: eventDate.startTime,
         endTime: eventDate.endTime,
-        matches: (await this.matchUtils.convertMatchToMatchDto(
-          matches,
-        )) as unknown as MatchDto[],
+        // matches: (await this.matchUtils.convertMatchToMatchDto(
+        //   matches,
+        // )) as unknown as MatchDto[],
       },
     ];
 
@@ -381,18 +381,18 @@ export class MatchService {
         date: oldEventDate.date,
         startTime: oldEventDate.startTime,
         endTime: oldEventDate.endTime,
-        matches: this.matchUtils.convertMatchToMatchDto(
-          oldEventDateMatches,
-        ) as unknown as MatchDto[],
+        // matches: this.matchUtils.convertMatchToMatchDto(
+        //   oldEventDateMatches,
+        // ) as unknown as MatchDto[],
       },
       {
         eventDateId: newEventDate.id,
         date: newEventDate.date,
         startTime: newEventDate.startTime,
         endTime: newEventDate.endTime,
-        matches: this.matchUtils.convertMatchToMatchDto(
-          newEventDateMatches,
-        ) as unknown as MatchDto[],
+        // matches: this.matchUtils.convertMatchToMatchDto(
+        //   newEventDateMatches,
+        // ) as unknown as MatchDto[],
       },
     ];
     return result;

@@ -57,6 +57,7 @@ export class MatchRepository extends Repository<Match> {
       .leftJoinAndSelect('match.teamOne', 'teamOne')
       .leftJoinAndSelect('match.teamTwo', 'teamTwo')
       .leftJoinAndSelect('match.eventDate', 'eventDate')
+      .leftJoinAndSelect('match.slot', 'slot')
       .where('match.event_date_id = :eventDateId', { eventDateId })
       .orderBy('match.start_time', 'ASC')
       .getMany();

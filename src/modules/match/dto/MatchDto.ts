@@ -38,6 +38,10 @@ export class MatchDto {
   @IsInt()
   eventDateId: number;
 
+  @IsNotEmpty()
+  @IsInt()
+  slotId: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(255)

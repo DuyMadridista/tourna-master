@@ -350,7 +350,10 @@ export class GenerationService {
     }
   
     const generations = await Promise.all(
-      sortedEventDates.map(date => this.matchUtils.createGeneration(date, matchDtos))
+      sortedEventDates.map(async date => {
+        const slots = await this.eventDateService.getSlotsByEventDateId(date.id);
+        return this.matchUtils.createGeneration(date, matchDtos, slots);
+      }),
     );
   
     return SuccessResponse(true, generations.length, generations);
@@ -816,7 +819,7 @@ export class GenerationService {
         date: day.date,
         startTime: day.startTime,
         endTime: day.endTime,
-        matches: matchDtos,
+        //matches: matchDtos,
         eventDateId: day.id,
       });
     }
@@ -897,8 +900,10 @@ export class GenerationService {
         await this.matchUtils.convertMatchListToMatchDtoList(
           await this.matchService.getMatchByEventDateId(oldEventDate.id),
         );
+      const slots = await this.eventDateService.getSlotsByEventDateId(oldEventDate.id);
+
       generations.push(
-        await this.matchUtils.createGeneration(oldEventDate, oldEventMatchDTOs),
+        await this.matchUtils.createGeneration(oldEventDate, oldEventMatchDTOs, slots),
       );
       await this.matchService.saveAll(matchesUpdated[0]);
     }
@@ -907,8 +912,9 @@ export class GenerationService {
       await this.matchUtils.convertMatchListToMatchDtoList(
         await this.matchService.getMatchByEventDateId(eventDateIdSelected),
       );
+      const slots = await this.eventDateService.getSlotsByEventDateId(eventDateIdSelected);
     generations.push(
-      await this.matchUtils.createGeneration(newEventDate, newEventMatchDTOs),
+      await this.matchUtils.createGeneration(newEventDate, newEventMatchDTOs, slots),
     );
 
     return generations;
@@ -929,8 +935,9 @@ export class GenerationService {
       const matches = await this.matchUtils.convertMatchListToMatchDtoList(
         await this.matchService.getMatchByEventDateId(eventDate.id),
       );
+      const slots = await this.eventDateService.getSlotsByEventDateId(eventDate.id);
       generations.push(
-        await this.matchUtils.createGeneration(eventDate, matches),
+        await this.matchUtils.createGeneration(eventDate, matches, slots),
       );
     }
 

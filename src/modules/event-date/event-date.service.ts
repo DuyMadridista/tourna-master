@@ -5,7 +5,7 @@ import {
   forwardRef,
   Inject,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { EventDate } from './entities/event-date.entity';
 import { EventDateRepository } from './event-date.repository';
 import { MatchRepository } from '../match/match.repository';
@@ -16,6 +16,9 @@ import { Duration, LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Match } from '../match/entities/match.entity';
 import { Tournament } from '../tournament/entities/tournament.entity';
+import { Slot } from './entities/slot.entity';
+import e from 'express';
+import { SlotDTO } from './dto/slot.dto';
 
 @Injectable()
 export class EventDateService {
@@ -24,14 +27,15 @@ export class EventDateService {
     private readonly eventDateRepository: EventDateRepository,
 
     private readonly tournamentRepository: TournamentRepository,
-
+    @InjectRepository(Slot)
+    private readonly slotRepository: Repository<Slot>,
     private readonly matchRepository: MatchRepository,
   ) {}
 
   async findAllByTournamentId(tournamentId: number): Promise<EventDate[]> {
     return this.eventDateRepository.findAllByTournamentId(tournamentId);
   }
-
+  
   async saveAll(eventDates: EventDate[]): Promise<void> {
     await this.eventDateRepository.saveAll(eventDates);
   }
@@ -183,5 +187,20 @@ export class EventDateService {
   }
   async findById(id: number): Promise<EventDate> {
     return this.eventDateRepository.findById(id);
+  }
+
+  async getSlotsByEventDateId(eventDateId: number): Promise<SlotDTO[]> {
+    const slots = await this.slotRepository.find({
+      where: { eventDate: { id: eventDateId } },
+      relations: ['eventDate'],
+    });
+    
+    return slots.map(slot => new SlotDTO({
+      id: slot.id,
+      slotIndex: slot.slotIndex,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      eventDateId: slot.eventDate.id,
+    }));``
   }
 }
