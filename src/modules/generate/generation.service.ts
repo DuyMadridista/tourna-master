@@ -153,9 +153,9 @@ export class GenerationService {
   ): Promise<SuccessResponseDto<GenerationDto[]>> {
     const tournament = await this.tournamentService.findTournamentById(tournamentId);
     if (!tournament) throw new BadRequestException('Tournament not found');
-    if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
-      throw new BadRequestException('Cannot generate schedule for this tournament');
-    }
+    // if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
+    //   throw new BadRequestException('Cannot generate schedule for this tournament');
+    // }
     if(tournament.format===TournamentFormat.GROUP_STAGE){
       return this.generateGroupStage(tournamentId, duration, betweenTime, startTime, endTime);
     }
@@ -352,7 +352,7 @@ export class GenerationService {
     const generations = await Promise.all(
       sortedEventDates.map(async date => {
         const slots = await this.eventDateService.getSlotsByEventDateId(date.id);
-        return this.matchUtils.createGeneration(date, matchDtos, slots);
+        return this.matchUtils.createGeneration(date, slots);
       }),
     );
   
@@ -590,9 +590,9 @@ export class GenerationService {
   ) {
     const t = await this.tournamentService.findTournamentById(tournamentId);
     if (!t) throw new BadRequestException('Tournament not found');
-    if (!TournamentStatusPermission.allowGenerateStatus.includes(t.status)) {
-      throw new BadRequestException('Cannot generate schedule for this tournament');
-    }
+    // if (!TournamentStatusPermission.allowGenerateStatus.includes(t.status)) {
+    //   throw new BadRequestException('Cannot generate schedule for this tournament');
+    // }
 
     t.matchDuration = duration;
     t.timeBetween = betweenTime;
@@ -819,7 +819,6 @@ export class GenerationService {
         date: day.date,
         startTime: day.startTime,
         endTime: day.endTime,
-        //matches: matchDtos,
         eventDateId: day.id,
       });
     }
@@ -903,7 +902,7 @@ export class GenerationService {
       const slots = await this.eventDateService.getSlotsByEventDateId(oldEventDate.id);
 
       generations.push(
-        await this.matchUtils.createGeneration(oldEventDate, oldEventMatchDTOs, slots),
+        await this.matchUtils.createGeneration(oldEventDate, slots),
       );
       await this.matchService.saveAll(matchesUpdated[0]);
     }
@@ -914,7 +913,7 @@ export class GenerationService {
       );
       const slots = await this.eventDateService.getSlotsByEventDateId(eventDateIdSelected);
     generations.push(
-      await this.matchUtils.createGeneration(newEventDate, newEventMatchDTOs, slots),
+      await this.matchUtils.createGeneration(newEventDate, slots),
     );
 
     return generations;
@@ -937,7 +936,7 @@ export class GenerationService {
       );
       const slots = await this.eventDateService.getSlotsByEventDateId(eventDate.id);
       generations.push(
-        await this.matchUtils.createGeneration(eventDate, matches, slots),
+        await this.matchUtils.createGeneration(eventDate, slots),
       );
     }
 

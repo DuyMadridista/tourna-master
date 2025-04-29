@@ -20,6 +20,7 @@ export class MatchRepository extends Repository<Match> {
       .leftJoinAndSelect('match.teamOne', 'teamOne')
       .leftJoinAndSelect('match.teamTwo', 'teamTwo')
       .leftJoinAndSelect('match.eventDate', 'eventDate')
+      .leftJoinAndSelect('match.slot', 'slot')
       .where('match.id = :id', { id })
       .getOne();
   }

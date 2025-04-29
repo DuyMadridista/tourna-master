@@ -19,6 +19,7 @@ import { Tournament } from '../tournament/entities/tournament.entity';
 import { Slot } from './entities/slot.entity';
 import e from 'express';
 import { SlotDTO } from './dto/slot.dto';
+import { MatchUtils } from 'src/helper/match.utils';
 
 @Injectable()
 export class EventDateService {
@@ -30,6 +31,8 @@ export class EventDateService {
     @InjectRepository(Slot)
     private readonly slotRepository: Repository<Slot>,
     private readonly matchRepository: MatchRepository,
+    private readonly matchUtils: MatchUtils,
+    
   ) {}
 
   async findAllByTournamentId(tournamentId: number): Promise<EventDate[]> {
@@ -192,15 +195,19 @@ export class EventDateService {
   async getSlotsByEventDateId(eventDateId: number): Promise<SlotDTO[]> {
     const slots = await this.slotRepository.find({
       where: { eventDate: { id: eventDateId } },
-      relations: ['eventDate'],
+      relations: ['eventDate', 'match', 'match.teamOne', 'match.teamTwo'],
     });
-    
-    return slots.map(slot => new SlotDTO({
-      id: slot.id,
-      slotIndex: slot.slotIndex,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      eventDateId: slot.eventDate.id,
-    }));``
+  
+    const slotDTOs = await Promise.all(
+      slots.map(async slot => new SlotDTO({
+        id: slot.id,
+        slotIndex: slot.slotIndex,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        eventDateId: slot.eventDate.id,
+        matches: slot.match ? await this.matchUtils.convertMatchToMatchDTO(slot.match, slot) : null,
+      }))
+    );
+    return slotDTOs;
   }
 }

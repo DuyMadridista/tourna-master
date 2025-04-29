@@ -29,6 +29,7 @@ import { TournamentRepository } from '../tournament/tournament.repository';
 import { TeamRepository } from '../team/team.repository';
 import { ChronoUnit, LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
 import { PlayerMatch } from '../player-match/player-match.entity';
+import { Slot } from '../event-date/entities/slot.entity';
 @Injectable()
 export class MatchService {
   constructor(
@@ -43,6 +44,8 @@ export class MatchService {
     @Inject(forwardRef(() => EventDateService))
     private readonly eventDateService: EventDateService,
     private readonly matchUtils: MatchUtils,
+    @InjectRepository(Slot)
+    private readonly slotRepository: Repository<Slot>,
   ) {}
 
   async matchList(tournamentId: number): Promise<Team[][]> {
@@ -295,6 +298,36 @@ export class MatchService {
     }
 
     return result;
+  }
+
+  async dragAndDropMatch2(matchId: number, newSlotId: number) {
+    const match = await this.matchRepository.findById(matchId);
+    if (!match) {
+      throw new NotFoundException(`Match with id ${matchId} not found`);
+    }
+    const newSlot = await this.slotRepository.findOne({ where: { id: newSlotId }, relations: ['match', 'eventDate'] });
+    if (!newSlot) {
+      throw new NotFoundException(`Slot with id ${newSlotId} not found`);
+    }
+
+    if (newSlot.match) {
+      throw new BadRequestException('Slot already has a match');
+    }
+    if (match.slot) {
+      const oldSlot = await this.slotRepository.findOne({ where: { id: match.slot.id }, relations: ['match'] });
+      if (oldSlot) {
+        oldSlot.match = null;
+        await this.slotRepository.save(oldSlot);
+      }
+      match.slot = null;
+    }
+    match.slot = newSlot;
+    newSlot.match = match;
+    match.startTime = newSlot.startTime;
+    match.endTime = newSlot.endTime;
+    match.eventDate = newSlot.eventDate;
+    await this.matchRepository.save(match);
+    await this.slotRepository.save(newSlot);
   }
 
   async dragAndDropMatchInDate(
@@ -875,7 +908,7 @@ export class MatchService {
   }
 
   async getMatchResult(tournamentId: number, matchId: number): Promise<any> {
-    await this.checkMatchInTournament(tournamentId, matchId);
+    //await this.checkMatchInTournament(tournamentId, matchId);
 
     const match = await this.matchRepository.findById(matchId);
     if (!match) {

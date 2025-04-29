@@ -1,17 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { TeamService } from 'src/modules/team/team.service';
 import { Match } from 'src/modules/match/entities/match.entity';
 import { MatchDto } from 'src/modules/match/dto/MatchDto';
 import { EventDate } from 'src/modules/event-date/entities/event-date.entity';
 import { GenerationDto } from 'src/modules/generate/dto/GenerationDto';
 import { TypeMatch } from '../enums/match-type.enum';
-import { CommonHelper } from './common-helper';
 import { LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
 import { SlotDTO } from '../modules/event-date/dto/slot.dto';
+import { Slot } from 'src/modules/event-date/entities/slot.entity';
 
 @Injectable()
 export class MatchUtils {
-  constructor(private readonly teamService: TeamService) {}
+  constructor() {}
 
   numberMatchTimes(schedule: Map<EventDate, Array<Array<LocalTime>>>): number {
     return Array.from(schedule.values()).reduce(
@@ -27,27 +26,34 @@ export class MatchUtils {
     return numMatchTime >= numMatch;
   }
 
-  async convertMatchToMatchDTO(match: Match): Promise<MatchDto> {
-    const matchDTO = new MatchDto();
-    matchDTO.id = match.id;
-    if (match.type === TypeMatch.MATCH || match.type === TypeMatch.GROUP) {
-      matchDTO.teamOne = match.teamOne;
-      matchDTO.teamTwo = match.teamTwo;
+  async convertMatchToMatchDTO(match: Match,slot?: Slot): Promise<MatchDto> {
+    try {
+      const matchDTO = new MatchDto();
+      matchDTO.id = match.id;
+      if (match.type === TypeMatch.MATCH || match.type === TypeMatch.GROUP) {
+        matchDTO.teamOne = match.teamOne;
+        matchDTO.teamTwo = match.teamTwo;
+      }
+      matchDTO.group = match.teamOne?.group || null;
+      matchDTO.timeDuration = match.matchDuration;
+      matchDTO.startTime = match.startTime;
+      matchDTO.endTime = match.endTime;
+      matchDTO.eventDateId = match.eventDate?.id ?? slot.eventDate.id;
+      matchDTO.type = match.type;
+      matchDTO.title = match.title;
+      matchDTO.slotId = match.slot?.id ?? slot.id;
+      return matchDTO;
+    } catch (error) {
+      console.log(match);
+      
+      console.log(error);
+      
     }
-    matchDTO.group = match.teamOne?.group || null;
-    matchDTO.timeDuration = match.matchDuration;
-    matchDTO.startTime = match.startTime;
-    matchDTO.endTime = match.endTime;
-    matchDTO.eventDateId = match.eventDate.id;
-    matchDTO.type = match.type;
-    matchDTO.title = match.title;
-    matchDTO.slotId = match.slot.id;
-    return matchDTO;
+
   }
 
   async createGeneration(
     eventDate: EventDate | null,
-    matchDTOs: MatchDto[],
     SlotDTOs: SlotDTO[],
   ): Promise<GenerationDto> {
     const generationDTO = new GenerationDto();
@@ -56,17 +62,7 @@ export class MatchUtils {
       generationDTO.date = eventDate.date;
       generationDTO.startTime = eventDate.startTime;
       generationDTO.endTime = eventDate.endTime;
-      generationDTO.slots = SlotDTOs.filter(
-        (slot) => slot.eventDateId === eventDate.id,
-      ).map((slot) => {
-        // Tìm match theo slotId
-        const match = matchDTOs.find((m) => m.slotId === slot.id);
-        // Gán match vào slot
-        return new SlotDTO({
-          ...slot,
-          matches: match ? match : null,
-        });
-      });
+      generationDTO.slots = SlotDTOs;
     }
     return generationDTO;
   }

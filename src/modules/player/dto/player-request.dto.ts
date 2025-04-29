@@ -12,4 +12,7 @@ export class PlayerRequestDto {
   @IsNotEmpty()
   @IsPhoneNumber(null)
   phone: string;
+
+  @IsNotEmpty()
+  number: number;
 }

@@ -62,6 +62,7 @@ export class PlayerController {
       playerDto.playerName,
       playerDto.dateOfBirth.toString(),
       playerDto.phone,
+      playerDto.number,
     );
     return SuccessResponse(true, 1, newPlayer, 'Player created successfully');
   }

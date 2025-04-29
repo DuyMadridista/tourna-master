@@ -13,10 +13,11 @@ import { MatchRepository } from './match.repository';
 import { TournamentRepository } from '../tournament/tournament.repository';
 import { PlayerMatchModule } from '../player-match/player-match.module';
 import { PlayerMatch } from '../player-match/player-match.entity';
+import { Slot } from '../event-date/entities/slot.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Match, Team, Tournament, PlayerMatch]),
+    TypeOrmModule.forFeature([Match, Team, Tournament, PlayerMatch, Slot]),
     forwardRef(() => TeamModule),
     forwardRef(() => EventDateModule),
     forwardRef(() => PlayerMatchModule),

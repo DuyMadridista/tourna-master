@@ -1,6 +1,6 @@
 import { Controller, Get, Put, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { MatchService } from './match.service';
-import { RequestDragDropMatch } from './dto/RequestDragDropMatch';
+import { RequestDragDropMatch, RequestDragDropMatch2 } from './dto/RequestDragDropMatch';
 import { SuccessResponse } from 'src/helper/OkResponse';
 import * as matchEntity from './entities/match.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -73,6 +73,15 @@ export class MatchController {
       request.newIndexOfMatch,
     );
     return SuccessResponse(true, data.length, data);
+  }
+
+  @Put('dragDrop')
+  async dragAndDropMatch(@Body() request: RequestDragDropMatch2) {
+    const data = await this.matchService.dragAndDropMatch2(
+      request.matchId,
+      request.newSlotId,
+    );
+    return SuccessResponse(true, 1, data);
   }
 
   @Put(':matchID')

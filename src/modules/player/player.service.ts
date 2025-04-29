@@ -55,6 +55,7 @@ export class PlayerService {
     playerName: string,
     dob: string,
     phoneNumber: string,
+    number: number,
   ): Promise<Player> {
     await this.checkTeamId(teamId);
 
@@ -68,6 +69,7 @@ export class PlayerService {
       dateOfBirth: dob,
       phone: phoneNumber,
       createdAt: new Date(),
+      number: number,
     });
 
     return this.playerRepository.save(newPlayer);
@@ -147,12 +149,14 @@ export class PlayerService {
       const date = Math.round((dob - 25569) * 86400 * 1000);
       const dateOfBirth = new Date(date);
       const phone = String(item['Phone'] || '').trim();
+      const number = item['Number'];
 
       const newPlayer = await this.createPlayer(
         teamId,
         playerName,
         dateOfBirth.toString(),
         phone,
+        number,
       );
       players.push(newPlayer);
     }

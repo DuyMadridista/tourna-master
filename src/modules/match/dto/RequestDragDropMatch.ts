@@ -10,3 +10,11 @@ export class RequestDragDropMatch {
   @IsInt()
   newIndexOfMatch: number;
 }
+export class RequestDragDropMatch2 {
+  @IsInt()
+  matchId: number;
+
+  @IsInt()
+  newSlotId: number;
+}
+
