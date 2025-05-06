@@ -7,7 +7,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Match } from './entities/match.entity';
 import { TeamService } from '../team/team.service';
 import { EventDateService } from '../event-date/event-date.service';
@@ -30,6 +30,8 @@ import { TeamRepository } from '../team/team.repository';
 import { ChronoUnit, LocalDate, LocalDateTime, LocalTime } from '@js-joda/core';
 import { PlayerMatch } from '../player-match/player-match.entity';
 import { Slot } from '../event-date/entities/slot.entity';
+import { TournamentFormat } from 'src/enums/tournament-format.enum';
+import { Tournament } from '../tournament/entities/tournament.entity';
 @Injectable()
 export class MatchService {
   constructor(
@@ -770,12 +772,220 @@ export class MatchService {
     match.teamOneResult = teamOneResult;
     match.teamTwoResult = teamTwoResult;
     await this.matchRepository.save(match);
+    if(tournament.format === TournamentFormat.GROUP_STAGE){
+      await this.checkAndAdvanceRound(tournament, match.type, match.round ?? 0);
+    }
     return {
       matchId: match.id,
       teamOneId: match.teamOne.teamId,
       teamTwoId: match.teamTwo.teamId,
     };
   }
+
+
+  private async checkAndAdvanceRound(
+    tournament: Tournament,
+    matchType: TypeMatch,
+    round: number,
+  ) {
+    // ———————————— Vòng bảng ————————————
+    if (matchType === TypeMatch.GROUP ) {
+      // Kiểm tra còn trận group nào chưa có kết quả không
+      const pending = await this.matchRepository
+                      .createQueryBuilder('match')
+                      .leftJoin('match.eventDate', 'eventDate')
+                      .leftJoin('eventDate.tournament', 'tournament')
+                      .where('tournament.id = :tournamentId', { tournamentId: tournament.id })
+                      .andWhere('match.type = :type', { type: TypeMatch.GROUP })
+                      .andWhere('match.teamOneResult IS NULL')
+                      .andWhere('match.teamTwoResult IS NULL')
+                      .getCount();
+      console.log(pending);
+      if (pending === 0) {
+        await this.fillNextRoundMatches(tournament, 1);
+        await this.tournamentRepository.save(tournament);
+      }
+      return;
+    }
+
+    // ———————————— Vòng knock‑out ————————————
+    if (matchType === TypeMatch.KNOCKOUT ) {
+      // Đếm những trận KO ở round này còn chưa result
+      const undone = await this.matchRepository
+              .createQueryBuilder('match')
+              .leftJoin('match.eventDate', 'eventDate')
+              .leftJoin('eventDate.tournament', 'tournament')
+              .where('tournament.id = :tournamentId', { tournamentId: tournament.id })
+              .andWhere('match.type = :type', { type: TypeMatch.KNOCKOUT })
+              .andWhere('match.round = :round', { round })
+              .andWhere('match.teamOneResult IS NULL')
+              .andWhere('match.teamTwoResult IS NULL')
+              .getCount();
+      if (undone === 0) {
+        // Xác định tổng số vòng (maxRound)
+        const maxRoundRow = await this.matchRepository
+          .createQueryBuilder('m')
+          .select('MAX(m.round)', 'max')
+          .where('m.eventDate.tournament.id = :tid', { tid: tournament.id })
+          .andWhere('m.type = :t', { t: TypeMatch.KNOCKOUT })
+          .getRawOne<{ max: number }>();
+        const maxRound = parseInt(maxRoundRow.max.toString(), 10);
+
+        if (round < maxRound) {
+          // Fill vòng tiếp theo
+          await this.fillNextRoundMatches(tournament, round + 1);
+        } else {
+          tournament.status = TournamentStatus.FINISHED;
+          await this.tournamentRepository.save(tournament);
+        }
+      }
+    }
+  }
+
+
+  async fillNextRoundMatches(tournament: Tournament, targetRound: number): Promise<void> {
+    // 1. Lấy kết quả vòng trước
+    if (targetRound === 1) {
+      const topTeamsMap = await this.getTopTeamsPerGroupMap(tournament.id, tournament.advancePerGroup);
+    
+      // convert map to array of [groupName, team[]]
+      const groupedArray = Array.from(topTeamsMap.entries()).sort(([a], [b]) => a.localeCompare(b)); // A, B, C...
+    
+      // Cặp bảng theo từng 2 nhóm: [A,B], [C,D], ...
+      const pairings: [string, string][] = [];
+      for (let i = 0; i < groupedArray.length; i += 2) {
+        if (i + 1 < groupedArray.length) {
+          pairings.push([groupedArray[i][0], groupedArray[i + 1][0]]);
+        }
+      }
+      const orderedTeams: Team[] = [];
+    
+      for (const [groupA, groupB] of pairings) {
+        const teamsA = topTeamsMap.get(groupA)!;
+        const teamsB = topTeamsMap.get(groupB)!;
+        const n = tournament.advancePerGroup;
+    
+        for (let i = 0; i < n; i++) {
+          orderedTeams.push(teamsA[i]);        // i-th in A
+          orderedTeams.push(teamsB[n - 1 - i]); // (N - i)-th in B
+        }
+      }
+    
+      // Lấy trận và gán đội
+      const nextMatches = await this.matchRepository.find({
+        where: {
+          eventDate: { tournament: { id: tournament.id } },
+          type: TypeMatch.KNOCKOUT,
+          round: targetRound,
+        },
+        order: { seedIndex: 'ASC' },
+      });
+    
+      for (let i = 0; i < nextMatches.length; i++) {
+        nextMatches[i].teamOne = orderedTeams[2 * i] ?? null;
+        nextMatches[i].teamTwo = orderedTeams[2 * i + 1] ?? null;
+      }
+    
+      await this.matchRepository.save(nextMatches);
+      return;
+    }    
+    const prevRound = targetRound - 1;
+    const prevMatches = await this.matchRepository.find({
+      where: { eventDate: { tournament: { id: tournament.id } }, type: TypeMatch.KNOCKOUT, round: prevRound },
+      order: { seedIndex: 'ASC' },
+      relations: ['teamOne', 'teamTwo'],
+    });
+    const winners = prevMatches.map(m =>
+      m.teamOneResult > m.teamTwoResult ? m.teamOne : m.teamTwo
+    );
+
+    // 2. Lấy các trận trống của vòng này
+    const nextMatches = await this.matchRepository.find({
+      where: { eventDate: { tournament: { id: tournament.id } }, type: TypeMatch.KNOCKOUT, round: targetRound },
+      order: { seedIndex: 'ASC' },
+    });
+
+    // 3. Gán đội thắng vào
+    for (let i = 0; i < nextMatches.length; i++) {
+      nextMatches[i].teamOne = winners[2 * i] || null;
+      nextMatches[i].teamTwo = winners[2 * i + 1] || null;
+    }
+
+    // 4. Lưu lại
+    await this.matchRepository.save(nextMatches);
+  }
+  
+
+  async getTopTeamsPerGroupMap(tournamentId: number, topN: number): Promise<Map<string, Team[]>> {
+    const matches = await this.matchRepository.find({
+      where: {
+        eventDate: { tournament: { id: tournamentId } },
+        type: TypeMatch.GROUP,
+      },
+      relations: ['teamOne', 'teamTwo'],
+    });
+  
+    type Stat = {
+      team: Team;
+      group: string;
+      score: number;
+      goalFor: number;
+      goalAgainst: number;
+    };
+    const teamStatsMap = new Map<number, Stat>();
+  
+    for (const match of matches) {
+      const entries = [
+        { team: match.teamOne, ownScore: match.teamOneResult, oppScore: match.teamTwoResult },
+        { team: match.teamTwo, ownScore: match.teamTwoResult, oppScore: match.teamOneResult },
+      ];
+  
+      for (const entry of entries) {
+        if (!entry.team) continue;
+  
+        if (!teamStatsMap.has(entry.team.teamId)) {
+          teamStatsMap.set(entry.team.teamId, {
+            team: entry.team,
+            group: entry.team.group,
+            score: 0,
+            goalFor: 0,
+            goalAgainst: 0,
+          });
+        }
+  
+        const stat = teamStatsMap.get(entry.team.teamId)!;
+        if (entry.ownScore != null && entry.oppScore != null) {
+          stat.goalFor += entry.ownScore;
+          stat.goalAgainst += entry.oppScore;
+  
+          if (entry.ownScore > entry.oppScore) stat.score += 3;
+          else if (entry.ownScore === entry.oppScore) stat.score += 1;
+        }
+      }
+    }
+  
+    // Group và sort theo thứ hạng trong bảng
+    const grouped = new Map<string, Team[]>();
+    const statGrouped = new Map<string, Stat[]>();
+    for (const stat of teamStatsMap.values()) {
+      if (!statGrouped.has(stat.group)) statGrouped.set(stat.group, []);
+      statGrouped.get(stat.group)!.push(stat);
+    }
+  
+    for (const [group, stats] of statGrouped.entries()) {
+      const sorted = stats.sort((a, b) =>
+        b.score - a.score ||
+        (b.goalFor - b.goalAgainst) - (a.goalFor - a.goalAgainst) ||
+        b.goalFor - a.goalFor
+      );
+      grouped.set(group, sorted.slice(0, topN).map(s => s.team));
+    }
+  
+    return grouped;
+  }
+  
+  
+  
 
   private async updateScores(
     match: Match,
@@ -955,7 +1165,7 @@ export class MatchService {
       title: match.title,
       type: match.type,
       timeDuration: match.matchDuration,
-      group: match.teamOne.group || null,
+      group: match.teamOne?.group || null,
     });
   }
 }

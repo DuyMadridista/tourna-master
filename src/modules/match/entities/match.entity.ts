@@ -86,6 +86,12 @@ export class Match {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @Column({ type: 'int', nullable: true })
+  round?: number;
+
+  @Column({ type: 'int', nullable: true })
+  seedIndex?: number;
   
   @OneToMany(() => PlayerMatch, (playerMatch) => playerMatch.match)
   playerMatches: PlayerMatch[];
