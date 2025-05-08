@@ -1208,9 +1208,6 @@ export class GenerationService {
       ),
     );
     for (const eventDate of eventDates) {
-      const matches = await this.matchUtils.convertMatchListToMatchDtoList(
-        await this.matchService.getMatchByEventDateId(eventDate.id),
-      );
       const slots = await this.eventDateService.getSlotsByEventDateId(eventDate.id);
       generations.push(
         await this.matchUtils.createGeneration(eventDate, slots),

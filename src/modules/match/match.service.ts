@@ -711,7 +711,7 @@ export class MatchService {
         endTime: data?.end_time,
         eventDateId: +data?.eventDateId,
         title: '',
-        type: TypeMatch.MATCH,
+        type: data?.match_type,
       };
 
       resultDto.matches.push(match);
@@ -772,7 +772,7 @@ export class MatchService {
     match.teamOneResult = teamOneResult;
     match.teamTwoResult = teamTwoResult;
     await this.matchRepository.save(match);
-    if(tournament.format === TournamentFormat.GROUP_STAGE){
+    if(tournament.format === TournamentFormat.GROUP_STAGE || tournament.format === TournamentFormat.DIRECT_ELIMINATION){
       await this.checkAndAdvanceRound(tournament, match.type, match.round ?? 0);
     }
     return {
@@ -823,13 +823,17 @@ export class MatchService {
               .getCount();
       if (undone === 0) {
         // Xác định tổng số vòng (maxRound)
-        const maxRoundRow = await this.matchRepository
-          .createQueryBuilder('m')
-          .select('MAX(m.round)', 'max')
-          .where('m.eventDate.tournament.id = :tid', { tid: tournament.id })
-          .andWhere('m.type = :t', { t: TypeMatch.KNOCKOUT })
-          .getRawOne<{ max: number }>();
-        const maxRound = parseInt(maxRoundRow.max.toString(), 10);
+        try {
+          const maxRoundRow = await this.matchRepository
+            .createQueryBuilder('m')
+            .leftJoin('m.eventDate', 'ed')
+            .leftJoin('ed.tournament', 't')
+            .select('MAX(m.round)', 'max')
+            .where('t.id = :tid', { tid: tournament.id })
+            .andWhere('m.type = :t', { t: TypeMatch.KNOCKOUT })
+            .getRawOne<{ max: number }>();
+
+          const maxRound = parseInt(maxRoundRow.max.toString(), 10);
 
         if (round < maxRound) {
           // Fill vòng tiếp theo
@@ -837,6 +841,9 @@ export class MatchService {
         } else {
           tournament.status = TournamentStatus.FINISHED;
           await this.tournamentRepository.save(tournament);
+        }
+        } catch (error) {
+          throw error;
         }
       }
     }

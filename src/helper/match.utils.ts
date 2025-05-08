@@ -30,11 +30,11 @@ export class MatchUtils {
     try {
       const matchDTO = new MatchDto();
       matchDTO.id = match.id;
-      if (match.type === TypeMatch.MATCH || match.type === TypeMatch.GROUP) {
-        matchDTO.teamOne = match.teamOne;
-        matchDTO.teamTwo = match.teamTwo;
+      if (match.type === TypeMatch.MATCH || match.type === TypeMatch.GROUP || match.type === TypeMatch.KNOCKOUT) {
+        matchDTO.teamOne = match?.teamOne || null;
+        matchDTO.teamTwo = match?.teamTwo || null;
       }
-      matchDTO.group = match.teamOne?.group || null;
+      matchDTO.group = match?.teamOne?.group || null;
       matchDTO.timeDuration = match.matchDuration;
       matchDTO.startTime = match.startTime;
       matchDTO.endTime = match.endTime;

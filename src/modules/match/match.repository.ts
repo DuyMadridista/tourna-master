@@ -75,6 +75,8 @@ export class MatchRepository extends Repository<Match> {
         'match.team_two_result',
         'match.start_time',
         'match.end_time',
+        'match.type',
+        'match.round',
         'eventDate.id as eventDateId',
       ])
       .innerJoin('match.eventDate', 'eventDate')
@@ -135,6 +137,7 @@ export class MatchRepository extends Repository<Match> {
       .select([
         'team1.id AS teamId',
         'team1.name AS teamName',
+        'team1.group AS `group`',
         'team1.score AS score',
         '(SELECT COUNT(*) FROM matches m WHERE (m.team_one_id = team1.id OR m.team_two_id = team1.id)) AS totalMatches',
         'SUM(CASE WHEN (team1.id = match.team_one_id AND match.team_one_result > match.team_two_result) OR (team1.id = match.team_two_id AND match.team_two_result > match.team_one_result) THEN 1 ELSE 0 END) AS wins',
