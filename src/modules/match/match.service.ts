@@ -7,7 +7,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, MoreThan, Raw, Repository } from 'typeorm';
 import { Match } from './entities/match.entity';
 import { TeamService } from '../team/team.service';
 import { EventDateService } from '../event-date/event-date.service';
@@ -49,6 +49,29 @@ export class MatchService {
     @InjectRepository(Slot)
     private readonly slotRepository: Repository<Slot>,
   ) {}
+
+
+  async getUpcomingMatch(tournamentId: number): Promise<Match[]> {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = now.toTimeString().split(' ')[0]; // HH:MM:SS
+
+    return await this.matchRepository
+      .createQueryBuilder('match')
+      .innerJoinAndSelect('match.eventDate', 'eventDate')
+      .leftJoinAndSelect('match.teamOne', 'teamOne')
+      .leftJoinAndSelect('match.teamTwo', 'teamTwo')
+      .where('eventDate.tournamentId = :tournamentId', { tournamentId })
+      .andWhere(
+        `(eventDate.date > :today OR (eventDate.date = :today AND eventDate._startTime > :currentTime))`,
+        {
+          today,
+          currentTime,
+        },
+      )
+      .getMany();
+  }
+  
 
   async matchList(tournamentId: number): Promise<Team[][]> {
     const teams = await this.teamService.getAllTeamByTournamentId(tournamentId);

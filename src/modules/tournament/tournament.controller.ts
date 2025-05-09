@@ -48,9 +48,23 @@ export class TournamentController {
 
   @Get(':id')
   async findOne(@Param('id') id: number) {
-    return await this.tournamentService.getTournamentToShowGeneral(id);
+    const res= await this.tournamentService.getTournamentToShowGeneral(id);
+    const progress= await this.tournamentService.getProgressTournament(id);
+    res.additionalData.progress=progress;
+    return res;
   }
 
+  @Get('overview/:id')
+  async getTournamentOverview(
+    @Param('id') id: number
+  ) {
+    const res = await this.tournamentService.getTournamentToShowGeneral(id);
+    const progress= await this.tournamentService.getProgressTournament(id);
+    const upcomingMatch= await this.tournamentService.getUpcomingMatch(id);
+    res.additionalData.progress=progress;
+    res.additionalData.upcomingMatch=upcomingMatch;
+    return res;
+  }
   @Post()
   async create(@Body() createTournamentDto: CreateTournamentDto) {
     const { title, categoryId, eventDates, description, format,numberOfPlayers, numberOfGroups, teamsPerGroup, advancePerGroup, place } = createTournamentDto;

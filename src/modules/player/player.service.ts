@@ -50,6 +50,19 @@ export class PlayerService {
     return this.playerRepository.getTotalPlayersByTeamId(teamId);
   }
 
+  async countPlayerByTournamentId(tournamentId: number): Promise<number> {
+    const result = await this.playerRepository
+      .createQueryBuilder('player')
+      .leftJoin('player.team', 'team')
+      .leftJoin('team.tournament', 'tournament')
+      .where('tournament.id = :tournamentId', { tournamentId })
+      .select('COUNT(player.id)', 'count')
+      .getRawOne();
+  
+    return parseInt(result.count, 10);
+  }
+  
+
   async createPlayer(
     teamId: number,
     playerName: string,

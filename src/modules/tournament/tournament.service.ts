@@ -50,6 +50,7 @@ export class TournamentService {
     private playerService: PlayerService,
     private readonly currentUserProvider: CurrentUserProvider,
   ) {}
+  
 
   // tournament.service.ts
   public async getAll(
@@ -144,6 +145,27 @@ export class TournamentService {
       tournamentPlan: await this.getPlanByTournamentId(id),
     };
     return response;
+  }
+
+  public async getProgressTournament(id: number): Promise<object> {
+    const totalTeam= await this.teamService.countTeamByTournamentId(id);
+    const totalPlayer= await this.playerService.countPlayerByTournamentId(id);
+    const totalMatch = (await this.matchService.matchList(id)).length;
+    const upcomingMatch = (await this.matchService.getUpcomingMatch(id)).length;
+    const finishedMatch = totalMatch - upcomingMatch;
+    const progress = Math.round((finishedMatch / totalMatch) * 100);
+    return {
+      totalTeam,
+      totalPlayer,
+      progress,
+      totalMatch,
+      upcomingMatch,
+      finishedMatch,
+    };
+  }
+
+  public async getUpcomingMatch(tournamentId: number) {
+    return await this.matchService.getUpcomingMatch(tournamentId);
   }
 
   public async createTournament(
