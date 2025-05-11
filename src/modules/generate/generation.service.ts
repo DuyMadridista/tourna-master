@@ -1,3 +1,4 @@
+import { CommonHelper } from './../../helper/common-helper';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { MatchService } from '../match/match.service';
 import { EventDateService } from '../event-date/event-date.service';
@@ -150,16 +151,28 @@ export class GenerationService {
     startTime: LocalTime,
     endTime: LocalTime,
   ): Promise<SuccessResponseDto<GenerationDto[]>> {
-    const tournament = await this.tournamentService.findTournamentById(tournamentId);
+    const tournament =
+      await this.tournamentService.findTournamentById(tournamentId);
     if (!tournament) throw new BadRequestException('Tournament not found');
     // if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
     //   throw new BadRequestException('Cannot generate schedule for this tournament');
     // }
-    if(tournament.format===TournamentFormat.GROUP_STAGE){
-      return this.generateGroupStage(tournamentId, duration, betweenTime, startTime, endTime);
-    }
-    else{
-      return this.generate(tournamentId, duration, betweenTime, startTime, endTime);
+    if (tournament.format === TournamentFormat.GROUP_STAGE) {
+      return this.generateGroupStage(
+        tournamentId,
+        duration,
+        betweenTime,
+        startTime,
+        endTime,
+      );
+    } else {
+      return this.generate(
+        tournamentId,
+        duration,
+        betweenTime,
+        startTime,
+        endTime,
+      );
     }
   }
   // async generateGroupStage(
@@ -175,7 +188,7 @@ export class GenerationService {
   //   if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
   //     throw new BadRequestException('Cannot generate schedule for this tournament');
   //   }
-  
+
   //   tournament.timeBetween = betweenTime;
   //   tournament.startTimeDefault = startTime.toString();
   //   tournament.endTimeDefault = endTime.toString();
@@ -183,13 +196,13 @@ export class GenerationService {
   //     tournament.status = TournamentStatus.READY;
   //   }
   //   await this.tournamentService.save(tournament);
-  
+
   //   // STEP 2: Clean up & prepare
   //   await this.matchService.deleteAllMatchByTournamentId(tournamentId);
-  
+
   //   const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
   //   if (!eventDates.length) throw new BadRequestException('Event date is empty, please add them');
-  
+
   //   const allTeams = await this.teamService.getAllTeamByTournamentId(tournamentId);
   //   const groupedTeams = new Map<string, Team[]>();
   //   for (const team of allTeams) {
@@ -198,64 +211,64 @@ export class GenerationService {
   //     }
   //     groupedTeams.get(team.group)!.push(team);
   //   }
-  
+
   //   eventDates.forEach(date => {
   //     date.startTime = startTime;
   //     date.endTime = endTime;
   //   });
   //   await this.eventDateService.saveAll(eventDates);
-  
+
   //   const sortedEventDates = [...eventDates].sort((a, b) =>
   //     LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
   //   );
-  
+
   //   // STEP 3: Generate time slots
   //   let globalSlotId = 0;
   //   const timeSlots = sortedEventDates.flatMap((date, day) => {
   //     const slots = [];
   //     let currentTime = startTime;
-  
+
   //     while (true) {
   //       const slotEnd = currentTime.plusMinutes(duration);
   //       if (slotEnd.isAfter(endTime)) break;
-  
+
   //       slots.push({ id: globalSlotId++, eventDate: date, startTime: currentTime, endTime: slotEnd, day });
   //       currentTime = currentTime.plusMinutes(duration + betweenTime);
   //     }
-  
+
   //     return slots;
   //   });
-  
+
   //   // STEP 4: Generate group stage matches
   //   const matchEntities: Match[] = [];
   //   let slotIndex = 0;
-  
+
   //   for (const [groupName, groupTeams] of groupedTeams.entries()) {
   //     const groupMatches: [Team, Team][] = [];
-  
+
   //     for (let i = 0; i < groupTeams.length; i++) {
   //       for (let j = i + 1; j < groupTeams.length; j++) {
   //         groupMatches.push([groupTeams[i], groupTeams[j]]);
   //       }
   //     }
-  
+
   //     const totalTeams = groupTeams.length;
   //     const enoughDays = sortedEventDates.length >= totalTeams;
   //     const maxMatchesPerTeamPerDay = enoughDays ? 1 : Infinity;
   //     const matchCountPerDay = Array(sortedEventDates.length).fill(0);
   //     const teamDayMap = new Map<number, Set<number>>();
-  
+
   //     for (const [teamA, teamB] of groupMatches) {
   //       let assigned = false;
-  
+
   //       const dayPreference = [...Array(sortedEventDates.length).keys()].sort(
   //         (d1, d2) => matchCountPerDay[d1] - matchCountPerDay[d2]
   //       );
-  
+
   //       for (const day of dayPreference) {
   //         const teamAPlayed = teamDayMap.get(teamA.teamId)?.has(day) ?? false;
   //         const teamBPlayed = teamDayMap.get(teamB.teamId)?.has(day) ?? false;
-  
+
   //         if (
   //           (teamAPlayed ? 1 : 0) < maxMatchesPerTeamPerDay &&
   //           (teamBPlayed ? 1 : 0) < maxMatchesPerTeamPerDay
@@ -263,7 +276,7 @@ export class GenerationService {
   //           const availableSlot = timeSlots.find(s => s.day === day && !matchEntities.some(m =>
   //             m.eventDate.id === s.eventDate.id && m.startTime.equals(s.startTime)
   //           ));
-  
+
   //           if (availableSlot) {
   //             const match = new Match();
   //             match.teamOne = { teamId: teamA.teamId } as Team;
@@ -274,7 +287,7 @@ export class GenerationService {
   //             match.matchDuration = duration;
   //             match.type = TypeMatch.GROUP;
   //             matchEntities.push(match);
-  
+
   //             teamDayMap.set(teamA.teamId, new Set([...(teamDayMap.get(teamA.teamId) || []), day]));
   //             teamDayMap.set(teamB.teamId, new Set([...(teamDayMap.get(teamB.teamId) || []), day]));
   //             matchCountPerDay[day]++;
@@ -283,7 +296,7 @@ export class GenerationService {
   //           }
   //         }
   //       }
-  
+
   //       if (!assigned && slotIndex < timeSlots.length) {
   //         const slot = timeSlots[slotIndex++];
   //         const match = new Match();
@@ -298,26 +311,26 @@ export class GenerationService {
   //       }
   //     }
   //   }
-  
+
   //   await this.matchRepository.saveAll(matchEntities);
-  
+
   //   // STEP 4.5: Generate knockout matches (without team)
   //   const totalKnockoutTeams = tournament.numberOfGroups * tournament.advancePerGroup;
   //   const totalKnockoutMatches = totalKnockoutTeams - 1;
-  
+
   //   const knockoutMatches: Match[] = [];
   //   let currentRoundTeamCount = totalKnockoutTeams;
   //   let round = 1;
   //   let matchOrder = 0;
-  
+
   //   while (currentRoundTeamCount >= 2) {
   //     const matchesInRound = Math.floor(currentRoundTeamCount / 2);
-  
+
   //     for (let i = 0; i < matchesInRound; i++) {
   //       if (slotIndex >= timeSlots.length) {
   //         throw new BadRequestException('Not enough time slots for knockout matches');
   //       }
-  
+
   //       const slot = timeSlots[slotIndex++];
   //       const match = new Match();
   //       match.teamOne = null;
@@ -329,17 +342,17 @@ export class GenerationService {
   //       match.type = TypeMatch.KNOCKOUT;
   //       // match.round = round;
   //       // match.matchOrder = matchOrder++;
-  
+
   //       knockoutMatches.push(match);
   //     }
-  
+
   //     currentRoundTeamCount = matchesInRound;
   //     round++;
   //   }
-  
+
   //   await this.matchRepository.saveAll(knockoutMatches);
   //   matchEntities.push(...knockoutMatches);
-  
+
   //   // STEP 5: Convert to DTOs & build response
   //   const matchDtos: MatchDto[] = [];
   //   for (const date of sortedEventDates) {
@@ -347,14 +360,14 @@ export class GenerationService {
   //     const dtos = await Promise.all(dateMatches.map(m => this.matchUtils.convertMatchToMatchDTO(m)));
   //     matchDtos.push(...dtos);
   //   }
-  
+
   //   const generations = await Promise.all(
   //     sortedEventDates.map(async date => {
   //       const slots = await this.eventDateService.getSlotsByEventDateId(date.id);
   //       return this.matchUtils.createGeneration(date, slots);
   //     }),
   //   );
-  
+
   //   return SuccessResponse(true, generations.length, generations);
   // }
   // async generateGroupStage(
@@ -372,20 +385,20 @@ export class GenerationService {
   //     startTime,
   //     endTime,
   //   );
-  
+
   //   // STEP 2: Reset & prepare data
   //   const { groupedMatchPairs, eventDates, totalTeams } = await this.resetAndPrepareGroupData(
   //     tournamentId,
   //     startTime,
   //     endTime,
   //   );
-  
+
   //   // STEP 3: Generate time slots and save to DB
   //   const timeSlots = await this.generateAndSaveTimeSlots(eventDates, duration, betweenTime, startTime, endTime);
-  
+
   //   // STEP 4: Build conflict graph
   //   const conflictGraph = this.buildGroupConflictGraph(groupedMatchPairs);
-  
+
   //   // STEP 5: Assign matches to slots
   //   const matchToSlot = this.assignMatchesToSlots(
   //     groupedMatchPairs,
@@ -395,15 +408,13 @@ export class GenerationService {
   //     eventDates.length,
   //     eventDates,
   //   );
-  
+
   //   // STEP 6: Persist matches
   //   await this.persistMatches(groupedMatchPairs, matchToSlot, timeSlots, duration);
-  
+
   //   // STEP 7: Build and return response DTO
   //   return this.buildResponseDto(eventDates);
   // }
-
-  
 
   async generateGroupStage(
     tournamentId: number,
@@ -414,51 +425,60 @@ export class GenerationService {
   ): Promise<SuccessResponseDto<GenerationDto[]>> {
     // STEP 1: Validate & update tournament
     const tournament = await this.validateAndUpdateTournament(
-      tournamentId, duration, betweenTime, startTime, endTime,
+      tournamentId,
+      duration,
+      betweenTime,
+      startTime,
+      endTime,
     );
-  
+
     // STEP 2: Reset & prepare group data
     const { groupedMatchPairs, eventDates, totalTeams } =
       await this.resetAndPrepareGroupData(tournamentId, startTime, endTime);
-  
+
     // STEP 3: Compute days for stages
     const totalDates = eventDates.length; // e.g., 5 days total
-    const teamsAdvancing = tournament.numberOfGroups * tournament.advancePerGroup; // e.g. 4
+    const teamsAdvancing =
+      tournament.numberOfGroups * tournament.advancePerGroup; // e.g. 4
     const padded = this.autoPadToPowerOfTwo(teamsAdvancing); // pad to power of two
     const knockoutRounds = Math.log2(padded); // number of knockout rounds
     const knockoutDays = knockoutRounds; // 2 days: semis + final
     const groupDays = totalDates - knockoutDays; // remaining days for group stage
-  
+
     const groupDates = eventDates.slice(0, groupDays);
     const knockoutDates = eventDates.slice(groupDays);
-  
+
     // STEP 4: Generate time slots for all days
     const timeSlots = await this.generateAndSaveTimeSlots(
-      eventDates, duration, betweenTime, startTime, endTime,
+      eventDates,
+      duration,
+      betweenTime,
+      startTime,
+      endTime,
     );
-  
+
     // STEP 5: Prepare interleaved slots for group stage to balance per day
     // Group slots by day in original order
-    const slotsByDay: Slot[][] = groupDates.map(d =>
+    const slotsByDay: Slot[][] = groupDates.map((d) =>
       timeSlots
-        .filter(s => s.eventDate.id === d.id)
-        .sort((a, b) => a.startTime.compareTo(b.startTime))
+        .filter((s) => s.eventDate.id === d.id)
+        .sort((a, b) => a.startTime.compareTo(b.startTime)),
     );
-  
+
     // Interleave: take one slot per day in round-robin
     const interleaved: Slot[] = [];
-    const maxSlots = Math.max(...slotsByDay.map(slots => slots.length));
+    const maxSlots = Math.max(...slotsByDay.map((slots) => slots.length));
     for (let i = 0; i < maxSlots; i++) {
       for (let dayIdx = 0; dayIdx < slotsByDay.length; dayIdx++) {
         const slot = slotsByDay[dayIdx][i];
         if (slot) interleaved.push(slot);
       }
     }
-  
+
     // Limit to exactly groupMatchCount slots
     const groupMatchCount = groupedMatchPairs.length;
     const groupSlots = interleaved.slice(0, groupMatchCount);
-  
+
     // STEP 6: Assign group matches to slots (conflict-graph + balancing)
     const conflictGraph = this.buildGroupConflictGraph(groupedMatchPairs);
     const matchToSlot = new Map<number, number>();
@@ -472,34 +492,35 @@ export class GenerationService {
     );
     // Store group assignments
     groupToSlot.forEach((slotId, idx) => matchToSlot.set(idx, slotId));
-  
+
     // STEP 7: Assign knockout matches by round, one round per day
     let koIdx = groupMatchCount;
-    const koRoundInfo: { index: number; round: number; seedIndex: number }[] = [];
+    const koRoundInfo: { index: number; round: number; seedIndex: number }[] =
+      [];
     for (let round = 1; round <= knockoutRounds; round++) {
-      const matchesInRound = padded / (2 ** round);
+      const matchesInRound = padded / 2 ** round;
       const date = knockoutDates[round - 1];
       const dailySlots = timeSlots
-        .filter(s => s.eventDate.id === date.id)
+        .filter((s) => s.eventDate.id === date.id)
         .sort((a, b) => a.startTime.compareTo(b.startTime))
         .slice(0, matchesInRound);
-  
+
       for (let j = 0; j < matchesInRound; j++) {
         const matchIndex = koIdx++;
         matchToSlot.set(matchIndex, dailySlots[j].id);
         koRoundInfo.push({ index: matchIndex, round, seedIndex: j });
       }
     }
-  
+
     // STEP 8: Persist matches
     const knockoutPairs = this.generateKnockoutPairs(
       tournament.numberOfGroups,
       tournament.advancePerGroup,
     );
     const allPairs = [...groupedMatchPairs, ...knockoutPairs];
-  
+
     const entities = allPairs.map(([t1, t2], idx) => {
-      const slot = timeSlots.find(s => s.id === matchToSlot.get(idx))!;
+      const slot = timeSlots.find((s) => s.id === matchToSlot.get(idx))!;
       const m = new Match();
       m.teamOne = t1 ? ({ teamId: t1.teamId } as Team) : null;
       m.teamTwo = t2 ? ({ teamId: t2.teamId } as Team) : null;
@@ -512,68 +533,68 @@ export class GenerationService {
       m.type = isGroup ? TypeMatch.GROUP : TypeMatch.KNOCKOUT;
 
       if (!isGroup) {
-        const info = koRoundInfo.find(i => i.index === idx)!;
+        const info = koRoundInfo.find((i) => i.index === idx)!;
         m.round = info.round;
         m.seedIndex = info.seedIndex;
       }
       return m;
     });
-  
+
     await this.matchService.saveAll(entities);
-  
+
     // STEP 9: Return DTO
     return this.buildResponseDto(eventDates);
   }
-  
-  
+
   // Helpers:
-  
+
   private generateKnockoutPairs(
     numberOfGroups: number,
     advancePerGroup: number,
-  ): [Team|null, Team|null][] {
+  ): [Team | null, Team | null][] {
     const total = numberOfGroups * advancePerGroup;
     const padded = this.autoPadToPowerOfTwo(total);
     const rounds = Math.log2(padded);
-    const pairs: [Team|null, Team|null][] = [];
+    const pairs: [Team | null, Team | null][] = [];
     for (let r = 1; r <= rounds; r++) {
       const cnt = padded / Math.pow(2, r);
       for (let i = 0; i < cnt; i++) pairs.push([null, null]);
     }
     return pairs;
   }
-  
+
   private autoPadToPowerOfTwo(n: number): number {
     let v = 1;
     while (v < n) v <<= 1;
     return v;
   }
-  
+
   private calcMaxMatchesPerDay(
     startTime: LocalTime,
     endTime: LocalTime,
     duration: number,
     betweenTime: number,
   ): number {
-    const mins = endTime.toSecondOfDay()/60 - startTime.toSecondOfDay()/60;
+    const mins = endTime.toSecondOfDay() / 60 - startTime.toSecondOfDay() / 60;
     return Math.floor(mins / (duration + betweenTime));
   }
 
-  
   private async resetAndPrepareGroupData(
     tournamentId: number,
     startTime: LocalTime,
     endTime: LocalTime,
   ) {
     await this.matchService.deleteAllMatchByTournamentId(tournamentId);
-    const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
+    const eventDates =
+      await this.eventDateService.findAllByTournamentId(tournamentId);
     if (!eventDates.length) {
       throw new BadRequestException('Event date is empty, please add them');
     }
-  
-    const allTeams = await this.teamService.getAllTeamByTournamentId(tournamentId);
+
+    const allTeams =
+      await this.teamService.getAllTeamByTournamentId(tournamentId);
     const groupMap = new Map<string, Team[]>();
-  
+
     for (const team of allTeams) {
       if (!team?.group) {
         throw new BadRequestException(`Team ${team.teamName} has no group`);
@@ -583,10 +604,10 @@ export class GenerationService {
       }
       groupMap.get(team?.group)!.push(team);
     }
-  
+
     const groupedMatchPairs: [Team, Team][] = [];
     const teamSet = new Set<number>();
-  
+
     for (const groupTeams of groupMap.values()) {
       if (groupTeams.length < 2) {
         throw new BadRequestException(`Group has fewer than 2 teams`);
@@ -604,23 +625,27 @@ export class GenerationService {
         }
       }
     }
-  
+
     // Normalize eventDates
     eventDates.forEach((d) => {
       d.startTime = startTime;
       d.endTime = endTime;
     });
     await this.eventDateService.saveAll(eventDates);
-  
+
     const sortedDates = [...eventDates].sort((a, b) =>
       LocalDate.parse(a.date.toString()).compareTo(
         LocalDate.parse(b.date.toString()),
       ),
     );
-  
-    return { groupedMatchPairs, eventDates: sortedDates, totalTeams: teamSet.size };
+
+    return {
+      groupedMatchPairs,
+      eventDates: sortedDates,
+      totalTeams: teamSet.size,
+    };
   }
-  
+
   private buildGroupConflictGraph(matches: [Team, Team][]) {
     const graph = new Map<number, Set<number>>();
     matches.forEach((pair, i) => {
@@ -636,7 +661,6 @@ export class GenerationService {
     });
     return graph;
   }
-  
 
   // async generate(
   //   tournamentId: number,
@@ -651,60 +675,60 @@ export class GenerationService {
   //   if (!TournamentStatusPermission.allowGenerateStatus.includes(tournament.status)) {
   //     throw new BadRequestException('Cannot generate schedule for this tournament');
   //   }
-  
+
   //   tournament.matchDuration = duration;
   //   tournament.timeBetween = betweenTime;
   //   tournament.startTimeDefault = startTime.toString();
   //   tournament.endTimeDefault = endTime.toString();
   //   if (tournament.status === TournamentStatus.NEED_INFORMATION) tournament.status = TournamentStatus.READY;
   //   await this.tournamentService.save(tournament);
-  
+
   //   // STEP 2: Reset & prepare data
   //   await this.matchService.deleteAllMatchByTournamentId(tournamentId);
   //   const matches = await this.matchService.matchList(tournamentId);
   //   const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
   //   if (!eventDates.length) throw new BadRequestException('Event date is empty, please add them');
-  
+
   //   const teamSet = new Set<number>();
   //   matches.forEach(([a, b]) => {
   //     if (a.teamId === b.teamId) throw new BadRequestException('A team cannot play against itself');
   //     teamSet.add(a.teamId);
   //     teamSet.add(b.teamId);
   //   });
-  
+
   //   const totalTeams = teamSet.size;
   //   const expectedMatches = (totalTeams * (totalTeams - 1)) / 2;
   //   if (matches.length !== expectedMatches) {
   //     throw new BadRequestException(`Expected ${expectedMatches} matches but got ${matches.length}`);
   //   }
-  
+
   //   eventDates.forEach(d => {
   //     d.startTime = startTime;
   //     d.endTime = endTime;
   //   });
   //   await this.eventDateService.saveAll(eventDates);
-  
+
   //   const sortedEventDates = [...eventDates].sort((a, b) =>
   //     LocalDate.parse(a.date.toString()).compareTo(LocalDate.parse(b.date.toString()))
   //   );
-  
+
   //   // STEP 3: Generate time slots
   //   let globalSlotId = 0;
   //   const timeSlots = sortedEventDates.flatMap((date, day) => {
   //     const slots = [];
   //     let currentTime = startTime;
-  
+
   //     while (true) {
   //       const slotEnd = currentTime.plusMinutes(duration);
   //       if (slotEnd.isAfter(endTime)) break;
-  
+
   //       slots.push({ id: globalSlotId++, eventDate: date, startTime: currentTime, endTime: slotEnd, day });
   //       currentTime = currentTime.plusMinutes(duration + betweenTime);
   //     }
-  
+
   //     return slots;
   //   });
-  
+
   //   // STEP 4: Build conflict graph
   //   const conflictGraph = new Map<number, Set<number>>();
   //   matches.forEach(([a1, b1], i) => {
@@ -715,7 +739,7 @@ export class GenerationService {
   //       }
   //     });
   //   });
-  
+
   //   // STEP 5: Assign matches to slots
   //   const matchToSlot = new Map<number, number>();
   //   const teamDayMap = new Map<number, Set<number>>();
@@ -723,23 +747,23 @@ export class GenerationService {
   //   const matchCountPerDay = Array(sortedEventDates.length).fill(0);
   //   const enoughDays = sortedEventDates.length >= totalTeams;
   //   const maxMatchesPerTeamPerDay = enoughDays ? 1 : Infinity;
-  
+
   //   const matchOrder = [...Array(matches.length).keys()].sort((a, b) =>
   //     (conflictGraph.get(b)?.size ?? 0) - (conflictGraph.get(a)?.size ?? 0)
   //   );
-  
+
   //   for (const matchIdx of matchOrder) {
   //     const [a, b] = matches[matchIdx];
   //     let assigned = false;
-  
+
   //     const dayPreference = [...Array(sortedEventDates.length).keys()].sort(
   //       (d1, d2) => matchCountPerDay[d1] - matchCountPerDay[d2]
   //     );
-  
+
   //     for (const day of dayPreference) {
   //       const teamAPlayed = teamDayMap.get(a.teamId)?.has(day) ?? false;
   //       const teamBPlayed = teamDayMap.get(b.teamId)?.has(day) ?? false;
-  
+
   //       if (
   //         (teamAPlayed ? 1 : 0) < maxMatchesPerTeamPerDay &&
   //         (teamBPlayed ? 1 : 0) < maxMatchesPerTeamPerDay
@@ -748,7 +772,7 @@ export class GenerationService {
   //           const hasConflict = [...matchToSlot.entries()].some(([otherIdx, slotId]) =>
   //             slotId === slot.id && conflictGraph.get(matchIdx)?.has(otherIdx)
   //           );
-  
+
   //           if (!usedSlots.has(slot.id) && !hasConflict) {
   //             matchToSlot.set(matchIdx, slot.id);
   //             usedSlots.add(slot.id);
@@ -760,17 +784,17 @@ export class GenerationService {
   //           }
   //         }
   //       }
-  
+
   //       if (assigned) break;
   //     }
-  
+
   //     // Relaxed constraint if no valid slot found
   //     if (!assigned) {
   //       for (const slot of timeSlots) {
   //         const hasConflict = [...matchToSlot.entries()].some(([otherIdx, slotId]) =>
   //           slotId === slot.id && conflictGraph.get(matchIdx)?.has(otherIdx)
   //         );
-  
+
   //         if (!usedSlots.has(slot.id) && !hasConflict) {
   //           matchToSlot.set(matchIdx, slot.id);
   //           usedSlots.add(slot.id);
@@ -782,7 +806,7 @@ export class GenerationService {
   //       }
   //     }
   //   }
-  
+
   //   // STEP 6: Persist matches
   //   const matchEntities = Array.from(matchToSlot.entries()).map(([idx, slotId]) => {
   //     const slot = timeSlots[slotId];
@@ -797,9 +821,9 @@ export class GenerationService {
   //     match.type = TypeMatch.MATCH;
   //     return match;
   //   });
-  
+
   //   await this.matchRepository.saveAll(matchEntities);
-  
+
   //   // STEP 7: Build response DTO
   //   const matchDtos: MatchDto[] = [];
   //   for (const date of sortedEventDates) {
@@ -807,14 +831,14 @@ export class GenerationService {
   //     const dtos = await Promise.all(dateMatches.map(m => this.matchUtils.convertMatchToMatchDTO(m)));
   //     matchDtos.push(...dtos);
   //   }
-  
+
   //   const generations = await Promise.all(
   //     sortedEventDates.map(date => this.matchUtils.createGeneration(date, matchDtos))
   //   );
-  
+
   //   return SuccessResponse(true, generations.length, generations);
   // }
-  
+
   async generate(
     tournamentId: number,
     duration: number,
@@ -832,11 +856,21 @@ export class GenerationService {
     );
 
     // STEP 2: Reset & prepare data
-    const { matches, eventDates, totalTeams } = await this.resetAndPrepareData(tournamentId, startTime, endTime);
+    const { matches, eventDates, totalTeams } = await this.resetAndPrepareData(
+      tournamentId,
+      startTime,
+      endTime,
+    );
     const matchPairs = matches as [Team, Team][];
 
     // STEP 3: Generate time slots and save to DB
-    const timeSlots = await this.generateAndSaveTimeSlots(eventDates, duration, betweenTime, startTime, endTime);
+    const timeSlots = await this.generateAndSaveTimeSlots(
+      eventDates,
+      duration,
+      betweenTime,
+      startTime,
+      endTime,
+    );
 
     // STEP 4: Build conflict graph
     const conflictGraph = this.buildConflictGraph(matchPairs);
@@ -852,7 +886,22 @@ export class GenerationService {
     );
 
     // STEP 6: Persist matches
-    await this.persistMatches(matchPairs, matchToSlot, timeSlots, tournament.matchDuration);
+    const entities = await this.persistMatches(
+      matchPairs,
+      matchToSlot,
+      timeSlots,
+      tournament.matchDuration,
+    );
+
+    for (const match of entities) {
+      await CommonHelper.createCalendarEvent({
+        summary: `Match: ${match.teamOne.teamId} vs ${match.teamTwo.teamId}`,
+        description: `Scheduled match between Team ${match.teamOne.teamId} and Team ${match.teamTwo.teamId}`,
+        startDateTime: `${match.eventDate.date}T${match.startTime}:00+07:00`,
+        endDateTime: `${match.eventDate.date}T${match.endTime}:00+07:00`,
+        attendeesEmails: [match.teamOne.leaderEmail, match.teamTwo.leaderEmail],
+      });
+    }
 
     // STEP 7: Build and return response DTO
     return this.buildResponseDto(eventDates);
@@ -889,7 +938,8 @@ export class GenerationService {
   ) {
     await this.matchService.deleteAllMatchByTournamentId(tournamentId);
     const rawMatches = await this.matchService.matchList(tournamentId);
-    const eventDates = await this.eventDateService.findAllByTournamentId(tournamentId);
+    const eventDates =
+      await this.eventDateService.findAllByTournamentId(tournamentId);
     if (!eventDates.length) {
       throw new BadRequestException('Event date is empty, please add them');
     }
@@ -935,9 +985,8 @@ export class GenerationService {
     startTime: LocalTime,
     endTime: LocalTime,
   ) {
-
     // Remove old slots
-    dates.forEach(async element => {
+    dates.forEach(async (element) => {
       await this.slotRepository.delete({ eventDate: { id: element.id } });
     });
 
@@ -955,7 +1004,7 @@ export class GenerationService {
           _startTime: current.toString(),
           _endTime: slotEnd.toString(),
         });
-        
+
         slots.push(slot);
         current = current.plusMinutes(duration + breakTime);
       }
@@ -964,9 +1013,7 @@ export class GenerationService {
     return await this.slotRepository.save(slots);
   }
 
-  private buildConflictGraph(
-    matches:  [Team, Team][],
-  ) {
+  private buildConflictGraph(matches: [Team, Team][]) {
     const graph = new Map<number, Set<number>>();
     matches.forEach((pair, i) => {
       graph.set(i, new Set());
@@ -996,19 +1043,19 @@ export class GenerationService {
     const matchCount = Array(totalDays).fill(0);
     const map = new Map<number, number>();
     const usedSlots = new Set<number>();
-  
+
     // Order by most conflicts first
     const order = [...graph.keys()].sort(
       (a, b) => graph.get(b)!.size - graph.get(a)!.size,
     );
-  
+
     order.forEach((idx) => {
       const [a, b] = matches[idx];
       const days = [...Array(totalDays).keys()].sort(
         (d1, d2) => matchCount[d1] - matchCount[d2],
       );
       let placed = false;
-  
+
       for (const day of days) {
         if (
           (teamDay.get(a.teamId)?.has(day) ? 1 : 0) < maxPerDay &&
@@ -1056,13 +1103,12 @@ export class GenerationService {
         }
       }
     });
-  
+
     return map;
   }
-  
 
   private async persistMatches(
-    matches: [ { teamId: number } , { teamId: number } ][],
+    matches: [{ teamId: number }, { teamId: number }][],
     map: Map<number, number>,
     slots: Slot[],
     duration: number,
@@ -1083,6 +1129,7 @@ export class GenerationService {
       entities.push(m);
     });
     await this.matchService.saveAll(entities);
+    return entities;
   }
 
   private async buildResponseDto(eventDates: EventDate[]) {
@@ -1102,10 +1149,6 @@ export class GenerationService {
     return SuccessResponse(true, dtos.length, dtos);
   }
 
-
-  
-  
-  
   async updateGeneration(
     matchId: number,
     eventDateIdSelected: number,
@@ -1176,7 +1219,9 @@ export class GenerationService {
         await this.matchUtils.convertMatchListToMatchDtoList(
           await this.matchService.getMatchByEventDateId(oldEventDate.id),
         );
-      const slots = await this.eventDateService.getSlotsByEventDateId(oldEventDate.id);
+      const slots = await this.eventDateService.getSlotsByEventDateId(
+        oldEventDate.id,
+      );
 
       generations.push(
         await this.matchUtils.createGeneration(oldEventDate, slots),
@@ -1188,7 +1233,8 @@ export class GenerationService {
       await this.matchUtils.convertMatchListToMatchDtoList(
         await this.matchService.getMatchByEventDateId(eventDateIdSelected),
       );
-      const slots = await this.eventDateService.getSlotsByEventDateId(eventDateIdSelected);
+    const slots =
+      await this.eventDateService.getSlotsByEventDateId(eventDateIdSelected);
     generations.push(
       await this.matchUtils.createGeneration(newEventDate, slots),
     );
@@ -1208,7 +1254,9 @@ export class GenerationService {
       ),
     );
     for (const eventDate of eventDates) {
-      const slots = await this.eventDateService.getSlotsByEventDateId(eventDate.id);
+      const slots = await this.eventDateService.getSlotsByEventDateId(
+        eventDate.id,
+      );
       generations.push(
         await this.matchUtils.createGeneration(eventDate, slots),
       );
