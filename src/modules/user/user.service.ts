@@ -108,7 +108,7 @@ export class UserService {
       lastName: organizer.lastName,
       phoneNumber: organizer.phoneNumber,
       dateOfBirth: organizer.dateOfBirth,
-      role: UserRole.ORGANIZER,
+      role: organizer.role ?? UserRole.ORGANIZER,
     });
 
     return this.userRepository.save(user);
@@ -218,7 +218,6 @@ export class UserService {
   async findAllOrganizer(): Promise<User[]> {
     const users = await this.userRepository
       .createQueryBuilder('user')
-      .where('user.role = :role', { role: UserRole.ORGANIZER })
       .getMany();
 
     return users;

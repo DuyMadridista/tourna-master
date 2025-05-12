@@ -12,10 +12,11 @@ import { MatchModule } from '../match/match.module';
 import { PlayerModule } from '../player/player.module';
 import { CurrentUserProvider } from 'src/helper/current-user.provider';
 import { AuthModule } from '../auth/auth.module';
+import { User } from '../user/entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Tournament]),
+    TypeOrmModule.forFeature([Tournament, User]),
     AuthModule,
     UserModule,
     forwardRef(() => TeamModule),

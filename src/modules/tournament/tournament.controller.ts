@@ -62,7 +62,7 @@ export class TournamentController {
     const progress= await this.tournamentService.getProgressTournament(id);
     const upcomingMatch= await this.tournamentService.getUpcomingMatch(id);
     res.additionalData.progress=progress;
-    res.additionalData.upcomingMatch=upcomingMatch;
+    res.additionalData.upcomingMatch=upcomingMatch.slice(0, 3);
     return res;
   }
   @Post()

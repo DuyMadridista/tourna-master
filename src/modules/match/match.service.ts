@@ -32,6 +32,7 @@ import { PlayerMatch } from '../player-match/player-match.entity';
 import { Slot } from '../event-date/entities/slot.entity';
 import { TournamentFormat } from 'src/enums/tournament-format.enum';
 import { Tournament } from '../tournament/entities/tournament.entity';
+import { GoogleCalendarHelper } from 'src/helper/google-calendar';
 @Injectable()
 export class MatchService {
   constructor(
@@ -69,6 +70,8 @@ export class MatchService {
           currentTime,
         },
       )
+      .orderBy('eventDate.date', 'ASC')
+      .addOrderBy('eventDate._startTime', 'ASC')
       .getMany();
   }
   
@@ -76,7 +79,7 @@ export class MatchService {
   async matchList(tournamentId: number): Promise<Team[][]> {
     const teams = await this.teamService.getAllTeamByTournamentId(tournamentId);
     if (teams.length === 0) {
-      throw new BadRequestException('Tournament currently has no teams.');
+      return [];
     }
 
     const numberTeams = teams.length;
@@ -353,6 +356,10 @@ export class MatchService {
     match.eventDate = newSlot.eventDate;
     await this.matchRepository.save(match);
     await this.slotRepository.save(newSlot);
+    await GoogleCalendarHelper.init();
+    GoogleCalendarHelper.updateGoogleCalendarEvent(match.calendarEventId, `${match.eventDate.date}T${match.startTime}:00+07:00`, 
+      `${match.eventDate.date}T${match.endTime}:00+07:00`, `Match: ${match.teamOne.teamName} vs ${match.teamTwo.teamName}`,
+      `Scheduled match between Team ${match.teamOne.teamName} and Team ${match.teamTwo.teamName}`, [match.teamOne.leaderEmail, match.teamTwo.leaderEmail]);
   }
 
   async dragAndDropMatchInDate(
@@ -874,6 +881,7 @@ export class MatchService {
 
 
   async fillNextRoundMatches(tournament: Tournament, targetRound: number): Promise<void> {
+    await GoogleCalendarHelper.init();
     // 1. Lấy kết quả vòng trước
     if (targetRound === 1) {
       const topTeamsMap = await this.getTopTeamsPerGroupMap(tournament.id, tournament.advancePerGroup);
@@ -896,8 +904,8 @@ export class MatchService {
         const n = tournament.advancePerGroup;
     
         for (let i = 0; i < n; i++) {
-          orderedTeams.push(teamsA[i]);        // i-th in A
-          orderedTeams.push(teamsB[n - 1 - i]); // (N - i)-th in B
+          orderedTeams.push(teamsA[i]);        
+          orderedTeams.push(teamsB[n - 1 - i]); 
         }
       }
     
@@ -908,13 +916,24 @@ export class MatchService {
           type: TypeMatch.KNOCKOUT,
           round: targetRound,
         },
+        relations: ['eventDate'],
         order: { seedIndex: 'ASC' },
       });
     
       for (let i = 0; i < nextMatches.length; i++) {
         nextMatches[i].teamOne = orderedTeams[2 * i] ?? null;
         nextMatches[i].teamTwo = orderedTeams[2 * i + 1] ?? null;
+        if (nextMatches[i].teamOne && nextMatches[i].teamTwo) {
+          const event = await GoogleCalendarHelper.createEvent(
+          `Match: ${nextMatches[i].teamOne.teamName} vs ${nextMatches[i].teamTwo.teamName}`,
+          `Scheduled match between Team ${nextMatches[i].teamOne.teamName} and Team ${nextMatches[i].teamTwo.teamName}`,
+          `${nextMatches[i].eventDate.date}T${nextMatches[i].startTime}:00+07:00`,
+          `${nextMatches[i].eventDate.date}T${nextMatches[i].endTime}:00+07:00`,
+          [nextMatches[i].teamOne.leaderEmail, nextMatches[i].teamTwo.leaderEmail],
+        );
+        nextMatches[i].calendarEventId = event.id;  
       }
+    }
     
       await this.matchRepository.save(nextMatches);
       return;
@@ -939,6 +958,16 @@ export class MatchService {
     for (let i = 0; i < nextMatches.length; i++) {
       nextMatches[i].teamOne = winners[2 * i] || null;
       nextMatches[i].teamTwo = winners[2 * i + 1] || null;
+      if (nextMatches[i].teamOne && nextMatches[i].teamTwo) {
+        const event = await GoogleCalendarHelper.createEvent(
+        `Match: ${nextMatches[i].teamOne.teamName} vs ${nextMatches[i].teamTwo.teamName}`,
+        `Scheduled match between Team ${nextMatches[i].teamOne.teamName} and Team ${nextMatches[i].teamTwo.teamName}`,
+        `${nextMatches[i].eventDate.date}T${nextMatches[i].startTime}:00+07:00`,
+        `${nextMatches[i].eventDate.date}T${nextMatches[i].endTime}:00+07:00`,
+        [nextMatches[i].teamOne.leaderEmail, nextMatches[i].teamTwo.leaderEmail],
+      );
+      nextMatches[i].calendarEventId = event.id;  
+    }
     }
 
     // 4. Lưu lại
@@ -1145,6 +1174,9 @@ export class MatchService {
   }
   async deleteAllMatchByTournamentId(tournamentId: number): Promise<void> {
     await this.matchRepository.deleteMatchByTournamentId(tournamentId);
+  }
+  async getAllMatchByTournamentId(tournamentId: number): Promise<Match[]> {
+    return this.matchRepository.getAllMatchByTournamentId(tournamentId);
   }
 
   async getMatchResult(tournamentId: number, matchId: number): Promise<any> {

@@ -26,6 +26,7 @@
       private readonly matchRepository: MatchRepository,
     ) {}
 
+
     async countTeamByTournamentId(tournamentId: number): Promise<number> {
       return this.teamRepository.count({
         where: { tournament: { id: tournamentId } },

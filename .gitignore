@@ -3,6 +3,10 @@
 /node_modules
 /build
 googlekey.json
+/googlekey.json
+/credentials.json
+/token.json
+/client_secret2.json
 # Logs
 logs
 *.log

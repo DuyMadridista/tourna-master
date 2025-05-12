@@ -6,7 +6,7 @@ import {
   forwardRef,
   Inject,
 } from '@nestjs/common';
-import { EntityManager } from 'typeorm';
+import { EntityManager, In } from 'typeorm';
 import { Tournament } from './entities/tournament.entity';
 import { UserService } from '../user/user.service';
 import { TeamService } from '../team/team.service';
@@ -27,6 +27,7 @@ import { LocalDate, LocalTime } from '@js-joda/core';
 import { CurrentUserProvider } from 'src/helper/current-user.provider';
 import { TournamentDto } from './dto/tournament.dto';
 import { Team } from '../team/entities/team.entity';
+import { UserRepository } from '../user/user.repository';
 // import { OrganizerTournamentService } from '../organizer-tournament/organizer-tournament.service';
 
 @Injectable()
@@ -36,6 +37,7 @@ export class TournamentService {
 
   constructor(
     private tournamentRepository: TournamentRepository,
+    private userRepository: UserRepository,
     private userService: UserService,
     @Inject(forwardRef(() => TeamService))
     private teamService: TeamService,
@@ -70,7 +72,7 @@ export class TournamentService {
     let tournaments: Tournament[] = [];
     let total = 0;
 
-    if (isAdmin || isOrganizer) {
+    // if (isAdmin || isOrganizer) {
       const [data, count] = await this.tournamentRepository.findAllByUserId(
         isAdmin ? null : user.id,
         page,
@@ -83,7 +85,7 @@ export class TournamentService {
       );
       tournaments = data;
       total = count;
-    }
+    //}
 
     const tournamentDtos = await Promise.all(
       tournaments.map(async (tournament) => {
@@ -93,10 +95,14 @@ export class TournamentService {
         const organizers = await this.userService.findUserByTournamentId(
           tournament.id,
         );
+        const progress = await this.getProgressTournament(tournament.id);
         return new TournamentDto({
           ...tournament,
           eventDates,
           organizers,
+          numberOfTeams: progress.totalTeam,
+          numberOfMatches: progress.totalMatch,
+          progress: progress.progress,
         });
       }),
     );
@@ -147,11 +153,11 @@ export class TournamentService {
     return response;
   }
 
-  public async getProgressTournament(id: number): Promise<object> {
+  public async getProgressTournament(id: number): Promise<{totalTeam: number, totalPlayer: number, progress: number, totalMatch: number, upcomingMatch: number, finishedMatch: number}> {
     const totalTeam= await this.teamService.countTeamByTournamentId(id);
     const totalPlayer= await this.playerService.countPlayerByTournamentId(id);
-    const totalMatch = (await this.matchService.matchList(id)).length;
-    const upcomingMatch = (await this.matchService.getUpcomingMatch(id)).length;
+    const totalMatch = (await this.matchService.matchList(id))?.length;
+    const upcomingMatch = (await this.matchService.getUpcomingMatch(id))?.length;
     const finishedMatch = totalMatch - upcomingMatch;
     const progress = Math.round((finishedMatch / totalMatch) * 100);
     return {
@@ -236,16 +242,27 @@ export class TournamentService {
     UpdateTournamentDto: UpdateTournamentDto,
     tournamentId: number,
   ): Promise<void> {
-    // if (UpdateTournamentDto.organizers) {
-    //   await this.organizerTournamentService.deleteAllByTournamentId(tournamentId);
-    //   const organizers = await Promise.all(
-    //     UpdateTournamentDto.organizers.map( async userId => ({
-    //       userId: userId,
-    //       tournamentId
-    //     }))
-    //   );
-    //   await this.organizerTournamentService.saveAll(organizers);
-    //   }
+    if (!UpdateTournamentDto.organizers) return;
+
+    const tournament = await this.tournamentRepository.findOne({
+      where: { id: tournamentId },
+      relations: ['organizers'], // <- cần để TypeORM biết mối quan hệ hiện tại
+    });
+
+    if (!tournament) {
+      throw new Error(`Tournament with id ${tournamentId} not found`);
+    }
+
+    // Lấy danh sách user mới theo id
+    const organizers = await this.userRepository.find({
+      where: { id: In(UpdateTournamentDto.organizers) },
+    });
+
+    // Cập nhật lại quan hệ
+    tournament.organizers = organizers;
+
+    // Lưu lại tournament với organizer mới
+    await this.tournamentRepository.save(tournament);
   }
 
   public async editEventDatesInGeneral(

@@ -81,6 +81,9 @@ export class Match {
   })
   type: TypeMatch;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  calendarEventId: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

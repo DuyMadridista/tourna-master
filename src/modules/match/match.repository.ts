@@ -40,6 +40,12 @@ export class MatchRepository extends Repository<Match> {
     return result > 0;
   }
 
+  async getAllMatchByTournamentId(tournamentId: number): Promise<Match[]> {
+    return this.createQueryBuilder('match')
+      .innerJoin('match.eventDate', 'eventDate')
+      .where('eventDate.tournamentId = :tournamentId', { tournamentId })
+      .getMany();
+  }
   async deleteMatchByTournamentId(tournamentId: number): Promise<void> {
     await this.createQueryBuilder('match')
       .delete()
@@ -82,9 +88,9 @@ export class MatchRepository extends Repository<Match> {
       .innerJoin('match.eventDate', 'eventDate')
       .innerJoin('eventDate.tournament', 'tournament')
       .where('tournament.id = :tournamentId', { tournamentId })
-      .andWhere(
-        'match.team_one_id IS NOT NULL AND match.team_two_id IS NOT NULL',
-      )
+      // .andWhere(
+      //   'match.team_one_id IS NOT NULL AND match.team_two_id IS NOT NULL',
+      // )
       .orderBy('eventDate.date', 'DESC')
       .getRawMany();
   }

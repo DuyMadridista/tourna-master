@@ -15,6 +15,9 @@ export class TournamentDto {
   format: TournamentFormat;
   organizers: UserDto[];
   eventDates: EventDate[];
+  numberOfTeams?: number;
+  numberOfMatches?: number;
+  progress?: number;
 
   constructor(partial: Partial<TournamentDto>) {
     Object.assign(this, partial);
