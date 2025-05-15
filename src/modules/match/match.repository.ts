@@ -4,6 +4,7 @@ import { Match } from './entities/match.entity';
 import { LeaderBoardDto } from './dto/LeaderBoardDto';
 import { MatchOfLeaderBoardDto } from './dto/MatchOfLeaderBoardDto';
 import { LocalTime } from '@js-joda/core';
+import { TypeMatch } from 'src/enums/match-type.enum';
 
 @Injectable()
 export class MatchRepository extends Repository<Match> {
@@ -163,6 +164,144 @@ export class MatchRepository extends Repository<Match> {
       .addOrderBy('goalsFor', 'DESC')
       .getRawMany();
   }
+
+  async getGroupStageLeaderBoard(tournamentId: number): Promise<LeaderBoardDto[]> {
+    return this.createQueryBuilder('match')
+      .select([
+        'team1.id AS teamId',
+        'team1.name AS teamName',
+        'team1.group AS `group`',
+        'team1.score AS score',
+        `(SELECT COUNT(*) FROM matches m WHERE (m.team_one_id = team1.id OR m.team_two_id = team1.id) and m.type = 'GROUP')  AS totalMatches`,
+        'SUM(CASE WHEN (team1.id = match.team_one_id AND match.team_one_result > match.team_two_result) OR (team1.id = match.team_two_id AND match.team_two_result > match.team_one_result) THEN 1 ELSE 0 END) AS wins',
+        'SUM(CASE WHEN match.team_one_result = match.team_two_result THEN 1 ELSE 0 END) AS draws',
+        'SUM(CASE WHEN (team1.id = match.team_one_id AND match.team_one_result < match.team_two_result) OR (team1.id = match.team_two_id AND match.team_two_result < match.team_one_result) THEN 1 ELSE 0 END) AS losses',
+        'COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END), 0) AS goalsFor',
+        'COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_two_result ELSE match.team_one_result END), 0) AS goalsAgainst',
+        'COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END) - SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_two_result ELSE match.team_one_result END), 0) AS goalDifference',
+      ])
+      .innerJoin('match.teamOne', 'team1')
+      .innerJoin('match.teamTwo', 'team2')
+      .innerJoin('match.eventDate', 'eventDate')
+      .where('team1.tournament_id = :tournamentId', { tournamentId })
+      .andWhere('match.type = :type', { type: TypeMatch.GROUP })
+      .groupBy('team1.id')
+      .orderBy('team1.score', 'DESC')
+      .addOrderBy('goalDifference', 'DESC')
+      .addOrderBy('goalsFor', 'DESC')
+      .getRawMany();
+  }
+
+
+  async getTop4KnockOut(tournamentId: number): Promise<LeaderBoardDto[]> {
+   const maxRoundResult = await this.createQueryBuilder('m')
+     .select('MAX(m.round)', 'max')
+     .innerJoin('m.eventDate', 'eventDate')
+     .where('eventDate.tournamentId = :tournamentId', { tournamentId })
+     .andWhere('m.type = :type', { type: TypeMatch.KNOCKOUT })
+     .getRawOne();
+   const maxRound = +maxRoundResult.max;
+   
+   // Step 2: Lấy 4 đội top (vô địch, á quân, 2 đội hạng ba)
+   const finalMatch = await this
+   .createQueryBuilder('match')
+   .leftJoinAndSelect('match.teamOne', 'teamOne')
+   .leftJoinAndSelect('match.teamTwo', 'teamTwo')
+   .leftJoinAndSelect('match.eventDate', 'eventDate')
+   .leftJoinAndSelect('eventDate.tournament', 'tournament')
+   .where('match.type = :type', { type: TypeMatch.KNOCKOUT })
+   .andWhere('match.round = :round', { round: maxRound })
+   .andWhere('tournament.id = :tournamentId', { tournamentId })
+   .getOne();
+ 
+  // trận chung kết chưa kết thúc
+  if(!finalMatch.teamOne || !finalMatch.teamTwo) return [];
+  const championId =
+    finalMatch.teamOneResult > finalMatch.teamTwoResult
+      ? finalMatch.teamOne.teamId
+      : finalMatch.teamTwo.teamId;
+  const runnerUpId =
+    finalMatch.teamOneResult > finalMatch.teamTwoResult
+      ? finalMatch.teamTwo.teamId
+      : finalMatch.teamOne.teamId;
+  
+  // Step 3: Lấy các trận bán kết
+  const semiFinalMatches = await this.createQueryBuilder('match')
+  .leftJoinAndSelect('match.teamOne', 'teamOne')
+  .leftJoinAndSelect('match.teamTwo', 'teamTwo')
+  .leftJoinAndSelect('match.eventDate', 'eventDate')
+  .leftJoinAndSelect('eventDate.tournament', 'tournament')
+  .where('match.type = :type', { type: TypeMatch.KNOCKOUT })
+  .andWhere('match.round = :round', { round: maxRound - 1 })
+  .andWhere('tournament.id = :tournamentId', { tournamentId })
+  .getMany();
+
+  
+  // Lấy 2 đội thua ở bán kết (đồng hạng ba)
+  const thirdPlaceIds = semiFinalMatches.map((match) => {
+    const isTeamOneWin = match.teamOneResult > match.teamTwoResult;
+    return isTeamOneWin ? match.teamTwo.teamId : match.teamOne.teamId;
+  });
+  
+  const top4Ids = [championId, runnerUpId, ...thirdPlaceIds];
+   
+   // Step 3: Truy vấn bảng tổng kết giống vòng bảng, lọc theo top4Ids
+   const leaderboard = await this.createQueryBuilder('match')
+     .select([
+       'team1.teamId AS teamId',
+       'team1.name AS teamName',
+       'team1.group AS `group`',
+       'team1.score AS score',
+       `(SELECT COUNT(*) FROM matches m 
+          WHERE (m.team_one_id = team1.teamId OR m.team_two_id = team1.teamId)) AS totalMatches`,
+       `SUM(CASE WHEN (team1.id = match.team_one_id AND match.team_one_result > match.team_two_result) 
+                  OR (team1.id = match.team_two_id AND match.team_two_result > match.team_one_result) 
+              THEN 1 ELSE 0 END) AS wins`,
+       `SUM(CASE WHEN match.team_one_result = match.team_two_result THEN 1 ELSE 0 END) AS draws`,
+       `SUM(CASE WHEN (team1.id = match.team_one_id AND match.team_one_result < match.team_two_result) 
+                  OR (team1.id = match.team_two_id AND match.team_two_result < match.team_one_result) 
+              THEN 1 ELSE 0 END) AS losses`,
+       `COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END), 0) AS goalsFor`,
+       `COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_two_result ELSE match.team_one_result END), 0) AS goalsAgainst`,
+       `COALESCE(SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_one_result ELSE match.team_two_result END)
+          - SUM(CASE WHEN team1.id = match.team_one_id THEN match.team_two_result ELSE match.team_one_result END), 0) AS goalDifference`,
+     ])
+     .innerJoin('match.teamOne', 'team1')
+     .innerJoin('match.teamTwo', 'team2')
+     .where('team1.id IN (:...teamIds)', { teamIds: top4Ids })
+     .groupBy('team1.id')
+     .getRawMany();
+   return leaderboard;
+  }
+
+  async getMatchOfGroupStageLeaderBoard(
+    tournamentId: number,
+  ): Promise<MatchOfLeaderBoardDto[]> {
+    return this.createQueryBuilder('match')
+      .select([
+        'match.id',
+        'match.team_one_id as teamOneId',
+        'team1.name AS teamOneName',
+        'match.team_two_id as teamTwoId',
+        'team2.name AS teamTwoName',
+        'match.team_one_result as teamOneResult',
+        'match.team_two_result as teamTwoResult',
+        'eventDate.date as date',
+        'match.start_time as startTime',
+        'match.end_time as endTime',
+        'CASE WHEN match.team_one_result > match.team_two_result THEN match.team_one_id WHEN match.team_two_result > match.team_one_result THEN match.team_two_id ELSE 0 END AS teamWinId',
+      ])
+      .innerJoin('match.teamOne', 'team1')
+      .innerJoin('match.teamTwo', 'team2')
+      .innerJoin('match.eventDate', 'eventDate')
+      .where('team1.tournament_id = :tournamentId', { tournamentId })
+      .andWhere('match.type = :type', { type: TypeMatch.GROUP })
+      .groupBy('match.id')
+      .orderBy('eventDate.date', 'DESC')
+      .addOrderBy('match.start_time', 'DESC')
+      .getRawMany();
+  }
+
 
   async getMatchOfLeaderBoard(
     tournamentId: number,

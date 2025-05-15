@@ -70,9 +70,23 @@ export class MatchService {
           currentTime,
         },
       )
+      .andWhere('match.teamOneResult IS NULL')
+      .andWhere('match.teamTwoResult IS NULL')
       .orderBy('eventDate.date', 'ASC')
       .addOrderBy('eventDate._startTime', 'ASC')
       .getMany();
+  }
+
+  async getTotalMatch(tournamentId: number): Promise<number> {
+    return await this.matchRepository
+      .createQueryBuilder('match')
+      .innerJoinAndSelect('match.eventDate', 'eventDate')
+      .leftJoinAndSelect('match.teamOne', 'teamOne')
+      .leftJoinAndSelect('match.teamTwo', 'teamTwo')
+      .where('eventDate.tournamentId = :tournamentId', { tournamentId })
+      .orderBy('eventDate.date', 'ASC')
+      .addOrderBy('eventDate._startTime', 'ASC')
+      .getCount();
   }
   
 
@@ -796,9 +810,9 @@ export class MatchService {
         'Result must be equal to 0 or greater than 0',
       );
     }
-
-    this.updateScores(match, teamOne, teamTwo, teamOneResult, teamTwoResult);
-
+    if(match.type !== TypeMatch.KNOCKOUT){
+      this.updateScores(match, teamOne, teamTwo, teamOneResult, teamTwoResult);
+    }
     match.teamOneResult = teamOneResult;
     match.teamTwoResult = teamTwoResult;
     await this.matchRepository.save(match);
@@ -952,6 +966,7 @@ export class MatchService {
     const nextMatches = await this.matchRepository.find({
       where: { eventDate: { tournament: { id: tournament.id } }, type: TypeMatch.KNOCKOUT, round: targetRound },
       order: { seedIndex: 'ASC' },
+      relations: ['eventDate'],
     });
 
     // 3. Gán đội thắng vào
@@ -1122,6 +1137,18 @@ export class MatchService {
     }));
   }
 
+  async getGroupStageLeaderBoard(tournamentId: number): Promise<{ leaderBoard: LeaderBoardDto[]; topTeams: LeaderBoardDto[] }> {
+    const leaderBoard = await this.matchRepository.getGroupStageLeaderBoard(tournamentId);
+    const topTeams = await this.matchRepository.getTop4KnockOut(tournamentId);
+    const leaderBoardWithRank = leaderBoard.map((team, index) => ({
+      ...team,
+      rank: index + 1,
+    }));
+    return {
+      leaderBoard: leaderBoardWithRank,
+      topTeams,
+    };
+  }
   /**
    * Get matches of leaderboard for a tournament by its ID
    */
@@ -1129,6 +1156,12 @@ export class MatchService {
     tournamentId: number,
   ): Promise<MatchOfLeaderBoardDto[]> {
     return this.matchRepository.getMatchOfLeaderBoard(tournamentId);
+  }
+
+  async getMatchOfGroupStageLeaderBoardByTournamentId(
+    tournamentId: number,
+  ): Promise<MatchOfLeaderBoardDto[]> {
+    return this.matchRepository.getMatchOfGroupStageLeaderBoard(tournamentId);
   }
 
   /**

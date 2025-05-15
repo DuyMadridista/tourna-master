@@ -156,7 +156,7 @@ export class TournamentService {
   public async getProgressTournament(id: number): Promise<{totalTeam: number, totalPlayer: number, progress: number, totalMatch: number, upcomingMatch: number, finishedMatch: number}> {
     const totalTeam= await this.teamService.countTeamByTournamentId(id);
     const totalPlayer= await this.playerService.countPlayerByTournamentId(id);
-    const totalMatch = (await this.matchService.matchList(id))?.length;
+    const totalMatch = await this.matchService.getTotalMatch(id);
     const upcomingMatch = (await this.matchService.getUpcomingMatch(id))?.length;
     const finishedMatch = totalMatch - upcomingMatch;
     const progress = Math.round((finishedMatch / totalMatch) * 100);
@@ -401,6 +401,15 @@ export class TournamentService {
       );
     if (!tournament) {
       throw new NotFoundException('Tournament not found');
+    }
+    if(tournament.format === TournamentFormat.GROUP_STAGE){
+      const groupStageLeaderBoard = await this.matchService.getGroupStageLeaderBoard(tournamentId);
+      const matches = await this.matchService.getMatchOfGroupStageLeaderBoardByTournamentId(tournamentId);
+      return {
+        leaderBoard: groupStageLeaderBoard.leaderBoard,
+        topTeams: groupStageLeaderBoard.topTeams,
+        matches,
+      };
     }
 
     const leaderBoard =

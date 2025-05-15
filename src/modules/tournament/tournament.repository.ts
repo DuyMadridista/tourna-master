@@ -148,7 +148,7 @@ export class TournamentRepository extends Repository<Tournament> {
       .addSelect('temp.EventDateId', 'firstEventDateId')
       .addSelect('temp.start_time', 'start_time')
       .from(`(${innerTempQuery.getQuery()})`, 'temp')
-      .leftJoin('match', 'm', 'm.event_date_id = temp.EventDateId')
+      .leftJoin('matches', 'm', 'm.event_date_id = temp.EventDateId')
       .groupBy('temp.tournament_id, temp.EventDateId, temp.start_time')
       .having(
         'COUNT(m.id) = 0 AND (MIN(temp.date) <= NOW() OR (MIN(temp.date) = NOW() AND temp.start_time < LOCALTIME))',
