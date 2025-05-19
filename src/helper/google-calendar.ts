@@ -17,17 +17,25 @@ export class GoogleCalendarHelper {
     const { client_secret, client_id, redirect_uris } = credentials.installed;
 
     this.oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-
     if (fs.existsSync(TOKEN_PATH)) {
       const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
       this.oAuth2Client.setCredentials(token);
+      this.oAuth2Client.on('tokens', (tokens: any) => {
+        if (tokens.refresh_token || tokens.access_token) {
+          fs.writeFileSync(TOKEN_PATH, JSON.stringify({
+            ...this.oAuth2Client.credentials,
+            ...tokens,
+          }));
+          console.log('🔄 Token đã được cập nhật');
+        }
+      });      
     } else {
       const authUrl = this.oAuth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: SCOPES,
       });
 
-      console.log('🔐 Mở URL sau trong trình duyệt và dán mã xác thực:\n', authUrl);
+      console.log('Mở URL sau trong trình duyệt và dán mã xác thực:\n', authUrl);
 
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -102,7 +110,6 @@ export class GoogleCalendarHelper {
         requestBody: updatedEvent,
       });
 
-      console.log('Đã cập nhật sự kiện trên Google Calendar:', response.data);
       return response.data;
     } catch (error) {
       console.error('Lỗi khi cập nhật sự kiện trên Google Calendar:', error);
