@@ -121,19 +121,35 @@ export class GoogleCalendarHelper {
       throw new Error('GoogleCalendarHelper chưa được init. Gọi init() trước.');
     }
     if (!eventId) {
-     return;
+      return;
     }
+
     const calendar = google.calendar({ version: 'v3', auth: this.oAuth2Client });
-  
-    try {
-      await calendar.events.delete({
-        calendarId: 'primary',
-        eventId: eventId,
-      });
-      console.log(`Sự kiện với ID ${eventId} đã được xóa.`);
-    } catch (error) {
-      console.error(`Không thể xóa sự kiện với ID ${eventId}:`, error);
-      throw new BadRequestException(error);
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await calendar.events.delete({
+          calendarId: 'primary',
+          eventId,
+        });
+        console.log(`Sự kiện với ID ${eventId} đã được xóa.`);
+        return;
+      } catch (err: any) {
+        const status = err.status || err.response?.status;
+        const reason = err.errors?.[0]?.reason;
+
+        // Nếu bị rateLimitExceeded thì chờ rồi retry
+        if (status === 403 && reason === 'rateLimitExceeded' && attempt < 5 - 1) {
+          const delay = Math.pow(2, attempt) * 200;
+          console.warn(
+            `Attempt ${attempt + 1} xóa event ${eventId} bị rateLimitExceeded, chờ ${delay}ms rồi thử lại...`
+          );
+          await new Promise((res) => setTimeout(res, delay));
+          continue;
+        }
+        console.error(`Không thể xóa sự kiện với ID ${eventId}:`, err);
+        throw new BadRequestException(err);
+      }
     }
   }
   

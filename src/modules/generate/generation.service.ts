@@ -351,6 +351,9 @@ export class GenerationService {
       startTime,
       endTime,
     );
+    if(timeSlots.length < matchPairs.length){
+      throw new BadRequestException('Not enough time slots, please add more event dates');
+    }
 
     // STEP 4: Build conflict graph
     const conflictGraph = this.buildConflictGraph(matchPairs);
@@ -420,11 +423,11 @@ export class GenerationService {
     endTime: LocalTime,
   ) {
     const allMatches = await this.matchService.getAllMatchByTournamentId(tournamentId);
-    allMatches.forEach(async (match) => {
-      if (match?.calendarEventId) {
+    for (const match of allMatches) {
+      if (match.calendarEventId) {
         await GoogleCalendarHelper.deleteEvent(match.calendarEventId);
       }
-    });
+    }
     await this.matchService.deleteAllMatchByTournamentId(tournamentId);
     const rawMatches = await this.matchService.matchList(tournamentId);
     const eventDates =
