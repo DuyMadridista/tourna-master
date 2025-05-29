@@ -131,6 +131,9 @@ export class GenerationService {
     // Limit to exactly groupMatchCount slots
     const groupMatchCount = groupedMatchPairs.length;
     const groupSlots = interleaved.slice(0, groupMatchCount);
+    if(groupSlots.length < groupMatchCount){
+      throw new BadRequestException('Not enough time slots for group stage');
+    }
 
     // STEP 6: Assign group matches to slots (conflict-graph + balancing)
     const conflictGraph = this.buildGroupConflictGraph(groupedMatchPairs);
