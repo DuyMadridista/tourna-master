@@ -370,11 +370,12 @@ export class MatchService {
     match.eventDate = newSlot.eventDate;
     await this.matchRepository.save(match);
     await this.slotRepository.save(newSlot);
+    if(match.teamOne && match.teamTwo) {
     await GoogleCalendarHelper.init();
     GoogleCalendarHelper.updateGoogleCalendarEvent(match.calendarEventId, `${match.eventDate.date}T${match.startTime}:00+07:00`, 
-      `${match.eventDate.date}T${match.endTime}:00+07:00`, `Match: ${match.teamOne.teamName} vs ${match.teamTwo.teamName}`,
-      `Scheduled match between Team ${match.teamOne.teamName} and Team ${match.teamTwo.teamName}`, [match.teamOne.leaderEmail, match.teamTwo.leaderEmail]);
-  }
+      `${match.eventDate.date}T${match.endTime}:00+07:00`, `Match: ${match.teamOne?.teamName} vs ${match.teamTwo?.teamName}`,
+      `Scheduled match between Team ${match.teamOne?.teamName} and Team ${match.teamTwo?.teamName}`, [match.teamOne?.leaderEmail, match.teamTwo?.leaderEmail]);
+  }}
 
   async dragAndDropMatchInDate(
     match: Match,

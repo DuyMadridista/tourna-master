@@ -7,6 +7,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { CurrentUserProvider } from 'src/helper/current-user.provider';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { GoogleStrategy } from './google.strategy';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, CurrentUserProvider, JwtAuthGuard],
+  providers: [AuthService, JwtStrategy, CurrentUserProvider, JwtAuthGuard, GoogleStrategy ],
   exports: [AuthService, CurrentUserProvider, JwtAuthGuard],
 })
 export class AuthModule {}

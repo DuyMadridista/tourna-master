@@ -66,15 +66,14 @@ export class TournamentService {
   ): Promise<any> {
     search = search.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const user = this.currentUserProvider.getUser();
-    const isAdmin = user.role === UserRole.ADMIN;
     const isOrganizer = user.role === UserRole.ORGANIZER;
-
+    const isUser = user.role === UserRole.USER;
     let tournaments: Tournament[] = [];
     let total = 0;
 
     // if (isAdmin || isOrganizer) {
       const [data, count] = await this.tournamentRepository.findAllByUserId(
-        isAdmin ? null : user.id,
+        isOrganizer ? user.id : null ,
         page,
         pageSize,
         sortType,
@@ -82,6 +81,7 @@ export class TournamentService {
         status,
         search,
         categoryId,
+        isUser? user.email : null,
       );
       tournaments = data;
       total = count;

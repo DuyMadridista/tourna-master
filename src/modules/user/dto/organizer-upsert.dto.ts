@@ -52,56 +52,6 @@ export class OrganizerUpSertDto {
   @IsString()
   password?: string;
 
-  /**
-   * Transform email to lowercase and trim spaces.
-   */
-  setEmail(email: string) {
-    this.email = email ? email.trim().toLowerCase() : null;
-  }
-
-  /**
-   * Transform first name to trim spaces.
-   */
-  setFirstName(firstName: string) {
-    this.firstName = firstName ? firstName.trim() : null;
-  }
-
-  /**
-   * Transform last name to trim spaces.
-   */
-  setLastName(lastName: string) {
-    this.lastName = lastName ? lastName.trim() : null;
-  }
-
-  /**
-   * Transform phone number to trim spaces.
-   */
-  setPhoneNumber(phoneNumber: string | number) {
-    if (phoneNumber) {
-      this.phoneNumber = phoneNumber.toString().trim();
-    }
-  }
-
-  /**
-   * Transform password to trim spaces.
-   */
-  setPassword(password: string) {
-    this.password = password ? password.trim() : null;
-  }
-
-  /**
-   * Transform dateOfBirth from string to Date.
-   */
-  setDateOfBirth(dateOfBirth: string) {
-    if (dateOfBirth) {
-      try {
-        this.dateOfBirth = new Date(dateOfBirth.trim());
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (error) {
-        throw new Error('Date of birth must be valid');
-      }
-    }
-  }
 
   /**
    * Static method to map a User entity to OrganizerUpSertDto.

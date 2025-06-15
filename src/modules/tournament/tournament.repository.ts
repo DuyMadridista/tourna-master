@@ -184,6 +184,7 @@ export class TournamentRepository extends Repository<Tournament> {
     status: TournamentStatus,
     search: string,
     categoryId: number,
+    email: string,
   ): Promise<any> {
     const queryBuilder = this.repository
       .createQueryBuilder('tournament')
@@ -207,6 +208,7 @@ export class TournamentRepository extends Repository<Tournament> {
       )
       .innerJoin('tournament.category', 'category')
       .innerJoin('tournament.organizers', 'organizer')
+      .leftJoin('tournament.teams', 'team')
       .where('tournament.isDeleted = :isDeleted', { isDeleted: false });
 
     if (userId) {
@@ -220,6 +222,12 @@ export class TournamentRepository extends Repository<Tournament> {
     if (search) {
       queryBuilder.andWhere('LOWER(tournament.title) LIKE :search', {
         search: `%${search.toLowerCase()}%`,
+      });
+    }
+
+    if (email) {
+      queryBuilder.andWhere('LOWER(team.leaderEmail) LIKE :email', {
+        email: `%${email.toLowerCase()}%`,
       });
     }
 

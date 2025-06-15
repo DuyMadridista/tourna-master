@@ -1,8 +1,9 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, UseGuards, Get, Req, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiBody } from '@nestjs/swagger';
 import { LoginDto } from './login.dto';
 import { SuccessResponse } from 'src/helper/OkResponse';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
@@ -20,5 +21,23 @@ export class AuthController {
     }
     const res = await this.authService.login(user);
     return SuccessResponse(true, 1, res, '');
+  }
+
+   @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {
+  }
+
+  @Get('google/redirect')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() req, @Res() res) {
+    const loginResult = await this.authService.login(req.user);
+    const { access_token, user } = loginResult;
+
+    const redirectUrl = `http://localhost:6789/oauthCallback?access_token=${access_token}&user=${encodeURIComponent(
+      JSON.stringify(user),
+    )}`
+
+    return res.redirect(redirectUrl)
   }
 }

@@ -156,6 +156,14 @@ export class UserService {
     return organizer;
   }
 
+  async findUserByEmail(email: string): Promise<User> {
+    const user = await this.userRepository.findUserByEmail(email);
+    if (!user) {
+      return null;
+    }
+    return user;
+  }
+
   async findByEmail(email: string): Promise<User> {
     const user = await this.userRepository.findUserByEmail(email);
     if (!user) {
