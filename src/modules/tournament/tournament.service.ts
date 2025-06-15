@@ -185,6 +185,7 @@ export class TournamentService {
     teamsPerGroup: number,
     advancePerGroup: number,
     place: string,
+    numberOfFields: number,
   ): Promise<Tournament> {
     if (!eventDates.length) {
       throw new BadRequestException('Event Date must not be null');
@@ -214,6 +215,7 @@ export class TournamentService {
       place: place,
       status: TournamentStatus.NEED_INFORMATION,
       matchDuration: 0,
+      numberOfFields: numberOfFields,
       timeBetween: null,
     });
 
@@ -386,6 +388,7 @@ export class TournamentService {
       teamsPerGroup: tournament.teamsPerGroup,
       advancePerGroup: tournament.advancePerGroup,
       place: tournament.place,
+      numberOfFields: tournament.numberOfFields,
       eventDates:
         await this.eventDateService.findAllByTournamentId(tournamentId),
       organizers: await this.userService.findOrganizerInGeneral(tournamentId),

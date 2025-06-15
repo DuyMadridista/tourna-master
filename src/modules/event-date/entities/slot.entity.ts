@@ -24,6 +24,9 @@ import { Match } from 'src/modules/match/entities/match.entity';
       onDelete: 'CASCADE',
     })
     eventDate: EventDate;
+
+    @Column({type: 'int', nullable: true, default: 1 })
+    fieldIndex: number;
   
     @OneToOne(() => Match, (match) => match.slot, { nullable: true, onDelete: 'SET NULL' })
     match: Match;

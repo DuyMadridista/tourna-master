@@ -67,7 +67,7 @@ export class TournamentController {
   }
   @Post()
   async create(@Body() createTournamentDto: CreateTournamentDto) {
-    const { title, categoryId, eventDates, description, format,numberOfPlayers, numberOfGroups, teamsPerGroup, advancePerGroup, place } = createTournamentDto;
+    const { title, categoryId, eventDates, description, format,numberOfPlayers, numberOfGroups, teamsPerGroup, advancePerGroup, place, numberOfFields } = createTournamentDto;
     const data = await this.tournamentService.createTournament(
       title,  
       categoryId,
@@ -79,6 +79,7 @@ export class TournamentController {
       teamsPerGroup,
       advancePerGroup,
       place,
+      numberOfFields
     );
     return SuccessResponse(true, 1, data, 'Tournament created successfully');
   }

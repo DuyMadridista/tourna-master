@@ -51,7 +51,13 @@ export class TournamentGeneralDto {
     type: Number,
   })
   numberOfGroups: number;
-  
+
+  @ApiProperty({
+ 
+    type: Number,
+  })
+  numberOfFields: number;
+
   @ApiProperty({
     description: 'Number of teams per group in the tournament',
     type: Number,

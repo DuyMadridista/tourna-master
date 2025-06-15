@@ -72,6 +72,8 @@ export class Tournament {
   })
   format: TournamentFormat;
 
+
+
   @Column({ name: 'is_deleted', default: false })
   isDeleted: boolean;
 
@@ -83,6 +85,9 @@ export class Tournament {
 
   @Column({ name: 'place', type: 'text', nullable: true })
   place: string;
+
+  @Column({ type: 'int', default: 1 })
+  numberOfFields: number;
 
   @ManyToMany(() => User, (user) => user.tournaments, { cascade: true })
   @JoinTable({

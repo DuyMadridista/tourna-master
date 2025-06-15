@@ -57,6 +57,8 @@ export class CreateTournamentDto {
   @IsString()
   @Transform(({ value }) => value?.trim())
   place?: string;
+
+   numberOfFields: number;
   //  GROUP_STAGE
   numberOfGroups: number;
 

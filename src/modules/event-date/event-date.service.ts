@@ -201,6 +201,7 @@ export class EventDateService {
     const slotDTOs = await Promise.all(
       slots.map(async slot => new SlotDTO({
         id: slot.id,
+        fieldIndex: slot.fieldIndex,
         slotIndex: slot.slotIndex,
         startTime: slot.startTime,
         endTime: slot.endTime,

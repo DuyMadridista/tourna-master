@@ -16,6 +16,9 @@ export class SlotDTO {
   slotIndex?: number;
 
   @IsOptional()
+  fieldIndex?: number;
+
+  @IsOptional()
   @Type(() => LocalTime)
   startTime?: LocalTime;
 

@@ -276,6 +276,7 @@ export class TournamentRepository extends Repository<Tournament> {
       eventDates: null,
       format: tournament.format,
       numberOfPlayers: tournament.numberOfPlayers,
+      numberOfFields: tournament.numberOfFields,
       numberOfGroups: tournament.numberOfGroups,
       teamsPerGroup: tournament.teamsPerGroup,
       advancePerGroup: tournament.advancePerGroup,
