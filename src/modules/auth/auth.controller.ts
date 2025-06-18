@@ -34,7 +34,7 @@ export class AuthController {
     const loginResult = await this.authService.login(req.user);
     const { access_token, user } = loginResult;
 
-    const redirectUrl = `http://localhost:6789/oauthCallback?access_token=${access_token}&user=${encodeURIComponent(
+    const redirectUrl = `https://halamadrid.me/oauthCallback?access_token=${access_token}&user=${encodeURIComponent(
       JSON.stringify(user),
     )}`
 
