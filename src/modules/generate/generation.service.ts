@@ -139,7 +139,7 @@ export class GenerationService {
     // STEP 6: Assign group matches to slots (conflict-graph + balancing)
     const conflictGraph = this.buildGroupConflictGraph(groupedMatchPairs);
     const matchToSlot = new Map<number, number>();
-    const groupToSlot = this.assignMatchesToSlots2(
+    const groupToSlot = this.assignMatchesToSlots(
       groupedMatchPairs,
       groupSlots,
       conflictGraph,
@@ -534,182 +534,293 @@ private async generateAndSaveTimeSlots(
     return graph;
   }
 
-  private assignMatchesToSlots(
-    matches: [Team, Team][],
-    slots: Slot[],
-    graph: Map<number, Set<number>>,
-    totalTeams: number,
-    totalDays: number,
-    dates: EventDate[],
-  ) {
-    const enoughDays = totalDays >= totalTeams;
-    const maxPerDay = enoughDays ? 1 : Infinity;
-    const teamDay = new Map<number, Set<number>>();
-    const matchCount = Array(totalDays).fill(0);
-    const map = new Map<number, number>();
-    const usedSlots = new Set<number>();
 
-    // Order by most conflicts first
-    const order = [...graph.keys()].sort(
-      (a, b) => graph.get(b)!.size - graph.get(a)!.size,
-    );
 
-    order.forEach((idx) => {
-      const [a, b] = matches[idx];
-      const days = [...Array(totalDays).keys()].sort(
-        (d1, d2) => matchCount[d1] - matchCount[d2],
-      );
-      let placed = false;
+private assignMatchesToSlots2(
+  matches: [Team, Team][],
+  slots: Slot[],
+  _graph: Map<number, Set<number>>, // unused
+  totalTeams: number,
+  totalDays: number,
+  dates: EventDate[],
+): Map<number, number> {
+  // 1. Build direct round-robin rounds with original match indices
+  const teamIds = Array.from(new Set(matches.flatMap(([a, b]) => [a.teamId, b.teamId])));
+  const teams = teamIds.map(id => ({ teamId: id } as Team));
+  const rounds: number[][] = this.generateRoundRobinMatchIndices(matches, teams);
 
-      for (const day of days) {
-        if (
-          (teamDay.get(a.teamId)?.has(day) ? 1 : 0) < maxPerDay &&
-          (teamDay.get(b.teamId)?.has(day) ? 1 : 0) < maxPerDay
-        ) {
-          for (const slot of slots.filter(
-            (s) => s.eventDate.id === dates[day].id && !usedSlots.has(s.id),
-          )) {
-            const conflict = [...map.entries()].some(
-              ([otherIdx, slotId]) =>
-                slotId === slot.id && graph.get(idx)!.has(otherIdx),
-            );
-            if (!conflict && !map.has(idx)) {
-              map.set(idx, slot.id);
-              usedSlots.add(slot.id);
-              matchCount[day]++;
-              teamDay.set(
-                a.teamId,
-                new Set([...(teamDay.get(a.teamId) || []), day]),
-              );
-              teamDay.set(
-                b.teamId,
-                new Set([...(teamDay.get(b.teamId) || []), day]),
-              );
-              placed = true;
-              break;
-            }
-          }
-        }
-        if (placed) break;
-      }
+  // 2. Group slots by day in original order
+  const slotsByDay: number[][] = dates.map(date =>
+    slots.filter(s => s.eventDate.id === date.id).map(s => s.id)
+  );
 
-      if (!placed) {
-        for (const slot of slots) {
-          if (usedSlots.has(slot.id)) continue;
-          const conflict = [...map.entries()].some(
-            ([otherIdx, slotId]) =>
-              slotId === slot.id && graph.get(idx)!.has(otherIdx),
-          );
-          if (!conflict) {
-            map.set(idx, slot.id);
-            usedSlots.add(slot.id);
-            break;
-          }
-        }
+  const matchToSlot = new Map<number, number>();
+
+  // 3. Assign each round to its day
+  for (let r = 0; r < rounds.length; r++) {
+    const dayIdx = Math.min(r, totalDays - 1);
+    const daySlots = slotsByDay[dayIdx];
+    const roundMatches = rounds[r];
+
+    roundMatches.forEach((matchIdx, idxInRound) => {
+      if (idxInRound < daySlots.length) {
+        matchToSlot.set(matchIdx, daySlots[idxInRound]);
+      } else {
+        // fallback: assign any remaining slot
+        const used = new Set(matchToSlot.values());
+        const fallback = slots.find(s => !used.has(s.id));
+        if (!fallback) throw new BadRequestException('Not enough slots');
+        matchToSlot.set(matchIdx, fallback.id);
       }
     });
-
-    return map;
   }
-  private assignMatchesToSlots2(
+
+  return matchToSlot;
+}
+
+/**
+ * Generate array of rounds, each round is an array of match indices into original matches[]
+ */
+private generateRoundRobinMatchIndices(
+  matches: [Team, Team][],
+  teams: Team[],
+): number[][] {
+  const n = teams.length;
+  const isOdd = n % 2 !== 0;
+  const arr = teams.map(t => t.teamId);
+  if (isOdd) arr.push(-1);
+  const half = arr.length / 2;
+  const rounds: number[][] = [];
+
+  for (let r = 0; r < arr.length - 1; r++) {
+    const roundIdxs: number[] = [];
+    for (let i = 0; i < half; i++) {
+      const t1 = arr[i];
+      const t2 = arr[arr.length - 1 - i];
+      if (t1 !== -1 && t2 !== -1) {
+        // find in original matches order
+        const mIdx = matches.findIndex(
+          ([a, b]) => (a.teamId === t1 && b.teamId === t2) || (a.teamId === t2 && b.teamId === t1)
+        );
+        if (mIdx >= 0) roundIdxs.push(mIdx);
+      }
+    }
+    rounds.push(roundIdxs);
+    // rotate
+    const last = arr.pop()!;
+    arr.splice(1, 0, last);
+  }
+  return rounds;
+}
+
+
+
+
+
+private assignMatchesToSlots(
   matches: [Team, Team][],
   slots: Slot[],
   graph: Map<number, Set<number>>,
   totalTeams: number,
   totalDays: number,
   dates: EventDate[],
-) {
-  const teamDay = new Map<number, Set<number>>(); // teamId -> set of dayIndex
-  const matchCount = Array(totalDays).fill(0); // number of matches per day
-  const map = new Map<number, number>(); // matchIdx -> slot.id
-  const usedSlots = new Set<number>();
+): Map<number, number> {
+  const teamDay = new Map<number, Set<number>>(); // teamId -> ngày đã đá
+  const matchCount = Array(totalDays).fill(0);     // Số trận mỗi ngày
+  const matchToSlot = new Map<number, number>();   // matchIdx -> slotId
+  const usedSlots = new Set<number>();             // slot đã dùng
 
-  const maxPerDay = 1;
+  const isEnoughDays = totalDays >= totalTeams - 1;
 
-  const order = [...graph.keys()].sort(
+  const orderedMatchIdx = [...graph.keys()].sort(
     (a, b) => graph.get(b)!.size - graph.get(a)!.size,
   );
 
-  for (const idx of order) {
+  for (const idx of orderedMatchIdx) {
     const [a, b] = matches[idx];
 
     const slotCandidates = slots
       .filter((slot) => !usedSlots.has(slot.id))
       .map((slot) => {
-        const dayIdx = dates.findIndex((d) => d.id === slot.eventDate.id);
+        const dayIdx = dates.findIndex(d => d.id === slot.eventDate.id);
         const aDays = teamDay.get(a.teamId) || new Set();
         const bDays = teamDay.get(b.teamId) || new Set();
 
-        // Tính điểm cho mỗi slot
         let score = 0;
 
-        // Ưu tiên ngày chưa có đội nào thi đấu
-        if (!aDays.has(dayIdx)) score += 10;
-        if (!bDays.has(dayIdx)) score += 10;
-
-        // Ưu tiên ngày ít trận
-        score += Math.max(0, 5 - matchCount[dayIdx]);
-
-        // Ưu tiên slot ít conflict
-        const conflict = [...map.entries()].some(
+        // Kiểm tra conflict slot (ưu tiên cao nhất)
+        const conflict = [...matchToSlot.entries()].some(
           ([otherIdx, slotId]) =>
             slotId === slot.id && graph.get(idx)!.has(otherIdx),
         );
-        if (conflict) score -= 20;
+        if (conflict) score -= 1000; // Penalty cao để tránh conflict
+
+        if (isEnoughDays) {
+          // Trường hợp đủ ngày: không cho phép đội đá 2 trận/ngày
+          if (!aDays.has(dayIdx)) score += 100;
+          else score -= 500; // Penalty cao để tránh trùng ngày
+
+          if (!bDays.has(dayIdx)) score += 100;
+          else score -= 500;
+        } else {
+          // Trường hợp thiếu ngày: ưu tiên slot cách xa nhất về thời gian
+          const aTimeGap = this.calculateMinTimeGap(a.teamId, slot, matchToSlot, slots, matches);
+          const bTimeGap = this.calculateMinTimeGap(b.teamId, slot, matchToSlot, slots, matches);
+          
+          // Cộng điểm dựa trên khoảng cách thời gian (càng xa càng tốt)
+          score += Math.min(aTimeGap, bTimeGap) / 3600; // Chuyển từ giây sang giờ để có điểm số hợp lý
+          
+          // Vẫn ưu tiên không trùng ngày nếu có thể, nhưng penalty thấp hơn
+          if (!aDays.has(dayIdx)) score += 50;
+          if (!bDays.has(dayIdx)) score += 50;
+        }
+
+        // Cân bằng số trận mỗi ngày
+        score += Math.max(0, 10 - matchCount[dayIdx]);
 
         return { slot, dayIdx, score, conflict };
       })
-      .sort((a, b) => b.score - a.score); // chọn slot có score cao nhất
+      .filter(candidate => candidate !== null)
+      .sort((a, b) => b!.score - a!.score);
 
     let placed = false;
 
+    // Thử gán slot có điểm cao nhất (không có conflict)
     for (const { slot, dayIdx, conflict } of slotCandidates) {
       if (conflict) continue;
 
-      map.set(idx, slot.id);
-      usedSlots.add(slot.id);
-      matchCount[dayIdx]++;
-
-      const aDays = teamDay.get(a.teamId) || new Set();
-      const bDays = teamDay.get(b.teamId) || new Set();
-      teamDay.set(a.teamId, new Set([...aDays, dayIdx]));
-      teamDay.set(b.teamId, new Set([...bDays, dayIdx]));
-
+      this.assignMatch(
+        idx,
+        slot.id,
+        dayIdx,
+        a.teamId,
+        b.teamId,
+        matchToSlot,
+        usedSlots,
+        matchCount,
+        teamDay,
+      );
       placed = true;
       break;
     }
 
     if (!placed) {
-      let fallbackSlot = slots
-    .filter((s) => !usedSlots.has(s.id))
-    .map((slot) => {
-      const dayIdx = dates.findIndex((d) => d.id === slot.eventDate.id);
-      const aDays = [...(teamDay.get(a.teamId) || [])];
-      const bDays = [...(teamDay.get(b.teamId) || [])];
-      const aDist = aDays.length > 0 ? Math.min(...aDays.map(d => Math.abs(d - dayIdx))) : Infinity;
-      const bDist = bDays.length > 0 ? Math.min(...bDays.map(d => Math.abs(d - dayIdx))) : Infinity;
-      return { slot, dayIdx, minDist: Math.min(aDist, bDist) };
-    })
-    .sort((a, b) => b.minDist - a.minDist)[0];
+      // Fallback: chấp nhận conflict nhưng chọn slot tối ưu nhất
+      const fallbackCandidates = slots
+        .filter((slot) => !usedSlots.has(slot.id))
+        .map((slot) => {
+          const dayIdx = dates.findIndex(d => d.id === slot.eventDate.id);
+          
+          if (isEnoughDays) {
+            // Nếu đủ ngày mà vẫn không gán được, có lỗi logic
+            return null;
+          }
+          
+          // Tính khoảng cách thời gian với các slot đã đá
+          const aTimeGap = this.calculateMinTimeGap(a.teamId, slot, matchToSlot, slots, matches);
+          const bTimeGap = this.calculateMinTimeGap(b.teamId, slot, matchToSlot, slots, matches);
+          const minTimeGap = Math.min(aTimeGap, bTimeGap);
 
-  if (!fallbackSlot) {
-    throw new BadRequestException('Not enough time slots available for all matches');
-  }
+          return { slot, dayIdx, minTimeGap };
+        })
+        .filter(candidate => candidate !== null)
+        .sort((a, b) => b!.minTimeGap - a!.minTimeGap); // Chọn khoảng cách lớn nhất
 
-  const { slot, dayIdx } = fallbackSlot;
+      if (fallbackCandidates.length === 0) {
+        throw new BadRequestException('Not enough time slots available for all matches');
+      }
 
-  map.set(idx, slot.id);
-  usedSlots.add(slot.id); 
-  matchCount[dayIdx]++;
-
-  const aDays = teamDay.get(a.teamId) || new Set();
-  const bDays = teamDay.get(b.teamId) || new Set();
-  teamDay.set(a.teamId, new Set([...aDays, dayIdx]));
-  teamDay.set(b.teamId, new Set([...bDays, dayIdx]));
+      const { slot, dayIdx } = fallbackCandidates[0]!;
+      this.assignMatch(
+        idx,
+        slot.id,
+        dayIdx,
+        a.teamId,
+        b.teamId,
+        matchToSlot,
+        usedSlots,
+        matchCount,
+        teamDay,
+      );
     }
   }
 
-  return map;
+  return matchToSlot;
+}
+
+// Hàm mới: tính khoảng cách thời gian tối thiểu với các slot đã đá
+private calculateMinTimeGap(
+  teamId: number,
+  candidateSlot: Slot,
+  matchToSlot: Map<number, number>,
+  slots: Slot[],
+  matches: [Team, Team][]
+): number {
+  const candidateTime = candidateSlot.startTime.toSecondOfDay();
+  const candidateDayIdx = candidateSlot.eventDate.id;
+  
+  let minGap = Infinity;
+  
+  for (const [matchIdx, slotId] of matchToSlot.entries()) {
+    const [a, b] = matches[matchIdx];
+    
+    // Kiểm tra nếu đội này tham gia trận đã được gán
+    if (a.teamId === teamId || b.teamId === teamId) {
+      const existingSlot = slots.find(s => s.id === slotId);
+      if (!existingSlot) continue;
+      
+      const existingTime = existingSlot.startTime.toSecondOfDay();
+      const existingDayIdx = existingSlot.eventDate.id;
+      
+      // Chỉ tính khoảng cách nếu cùng ngày
+      if (candidateDayIdx === existingDayIdx) {
+        const timeGap = Math.abs(candidateTime - existingTime);
+        minGap = Math.min(minGap, timeGap);
+      }
+    }
+  }
+  
+  // Nếu đội chưa đá trận nào trong ngày này, trả về khoảng cách lớn
+  return minGap === Infinity ? 24 * 3600 : minGap; // 24 giờ nếu không có trận nào cùng ngày
+}
+
+// Giữ nguyên các hàm phụ
+private assignMatch(
+  matchIdx: number,
+  slotId: number,
+  dayIdx: number,
+  teamAId: number,
+  teamBId: number,
+  map: Map<number, number>,
+  usedSlots: Set<number>,
+  matchCount: number[],
+  teamDay: Map<number, Set<number>>,
+) {
+  map.set(matchIdx, slotId);
+  usedSlots.add(slotId);
+  matchCount[dayIdx]++;
+
+  const aDays = teamDay.get(teamAId) || new Set();
+  const bDays = teamDay.get(teamBId) || new Set();
+  teamDay.set(teamAId, new Set([...aDays, dayIdx]));
+  teamDay.set(teamBId, new Set([...bDays, dayIdx]));
+}
+
+private getTeamSlotTimes(
+  teamId: number,
+  matchToSlot: Map<number, number>,
+  slots: Slot[],
+  matches: [Team, Team][]
+): number[] {
+  const times: number[] = [];
+  for (const [matchIdx, slotId] of matchToSlot.entries()) {
+    const [a, b] = matches[matchIdx];
+    if (a.teamId === teamId || b.teamId === teamId) {
+      const slot = slots.find(s => s.id === slotId);
+      if (slot) times.push(slot.startTime.toSecondOfDay());
+    }
+  }
+  return times;
 }
 
 
